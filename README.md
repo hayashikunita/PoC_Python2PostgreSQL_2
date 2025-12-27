@@ -1,1 +1,662 @@
 # PoC_Python2PostgreSQL_2
+
+# 🌐 ネットワーク診断・監視ツール
+
+> ⚠️ **このプロジェクトは現在開発途中です。機能やUIは今後変更される可能性があります。バグや未実装機能が含まれる場合があります。ご理解の上ご利用ください。**
+
+PC のネットワーク情報を確認・監視できる ローカル完結のアプリケーションです。
+初心者にもわかりやすい解説付きで、専門知識がなくても使えます。
+煩わしいWiresharkのパケット解析を自動化します。
+
+## 目次
+
+- [✨ 主な機能](#-主な機能)
+- [🚀 簡単セットアップ（推奨）](#-簡単セットアップ推奨)
+- [🧪 エンドポイント確認（開発者向けテスト手順）](#-エンドポイント確認開発者向けテスト手順)
+- [🔐 ChatGPT (OpenAI) 設定](#-chatgpt-openai-設定)
+- [📋 フロントエンドの「コピー」機能について](#-フロントエンドのコピー機能について)
+- [📦 技術スタック](#-技術スタック)
+- [🔧 手動セットアップ方法](#-手動セットアップ方法)
+- [🛠️ トラブルシューティング](#-トラブルシューティング)
+- [⚠️ 既知の制約と今後の改善](#-既知の制約と今後の改善)
+- [📝 ライセンス / 貢献](#-ライセンス)
+- [🐘 PostgreSQL（Docker）セットアップ](#-postgresqldockerセットアップ)
+
+## ✨ 主な機能<img width="1887" height="905" alt="スクリーンショット 2025-11-22 180916" src="https://github.com/user-attachments/assets/0a3f78f5-8804-449a-9240-bac36c61a113" />
+- ホスト名、プラットフォーム情報の表示
+- 全ネットワークインターフェースの詳細表示
+- IPv4/IPv6 アドレス、MACアドレスの確認
+- 各項目の初心者向け解説付き
+
+## ✨ Wifi情報<img width="1898" height="911" alt="スクリーンショット 2025-11-22 180928" src="https://github.com/user-attachments/assets/b97db3a9-bb85-4a5c-a2eb-714c591fd366" />
+- 接続中のWiFiネットワーク情報
+- シグナル強度、チャネル、無線タイプの表示
+- 利用可能なネットワーク一覧
+- セキュリティ情報の確認
+
+## 📡 ネットワーク情報<img width="1892" height="914" alt="スクリーンショット 2025-11-22 180942" src="https://github.com/user-attachments/assets/cd18165b-cec7-4387-9fdc-bb2c1e8fbc8b" />
+- リアルタイムのネットワーク統計
+- 送受信データ量の表示
+- パケット数のカウント
+- エラー・ドロップ数の監視
+- 5秒ごとの自動更新
+
+## 📡 パケットキャプチャ
+https://github.com/user-attachments/assets/df74eb44-ccfc-410d-91e1-130e8e48295d
+- **Wireshark不要**の簡単パケット解析
+- リアルタイムパケット監視（TCP/UDP/ICMP/ARP）
+- 通信内容の詳細表示と初心者向け解説
+- ポート番号からサービスの自動判別（40種類以上）
+- パケットの重要度自動判定
+- **3つの形式でエクスポート可能**:
+  - JSON形式（詳細な解説付き、アプリで再読み込み可能）
+  - PCAP形式（Wireshark対応の標準形式）
+  - CSV形式（Excel/スプレッドシート対応）
+- 自動停止機能（指定パケット数到達時）
+ - 各パケットをワンクリックでJSONテキストとしてクリップボードへコピー（共有・ログ取りに便利）
+
+NOTE: 停止の改善
+-----------------
+以前は内部で scapy.sniff(..., stop_filter=...) を使っていたため、停止リクエストを送ってもネットワークに新しいパケットが到着しないと stop_filter が評価されず、キャプチャがすぐに止まらない（裏で継続する）ことがありました。本プロジェクトではこの問題を解消するために AsyncSniffer を導入しました。これにより、停止 API が呼ばれたタイミングで sniffer.stop() を直接呼び出せるようになり、即時停止が可能になっています。
+
+## 📡 パケットキャプチャ統計
+https://github.com/user-attachments/assets/07af1bc5-4c91-48fa-bb56-2dfa3990880f
+
+## 💬 相談チャットボット
+https://github.com/user-attachments/assets/35c5ab45-1f91-4be2-ae6e-457f0645d392
+- ネットワークやパケットキャプチャに関する質問にAIが即座に回答
+- よくある質問ボタンでワンクリック質問
+- パケット統計データと連携した自動分析
+- 初心者向けのわかりやすい解説
+- トラブルシューティングや用語解説も対応
+ - OpenAI（ChatGPT）との連携に対応。ローカルで `OPENAI_API_KEY` を設定すると ChatGPT を使った応答が有効になります（`.env` または環境変数で設定）。
+ - 利用するモデルは `OPENAI_MODEL` 環境変数で切り替え可能（デフォルト: `gpt-5-mini`）。
+
+## 🚀 簡単セットアップ（推奨）
+
+プロジェクトルートに用意されている自動セットアップスクリプトを使用できます：
+
+### 初回セットアップ
+
+```powershell
+# バックエンドのセットアップ（通常権限で実行）
+.\setup-backend.ps1
+
+# フロントエンドのセットアップ
+.\setup-frontend.ps1
+```
+
+### サーバー起動
+
+```powershell
+# バックエンドを起動（管理者権限で実行）
+.\start-backend.ps1
+
+# 別のターミナルでフロントエンドを起動
+.\start-frontend.ps1
+```
+
+フロントエンドの起動に関する注意
+-----------------------------
+一部の環境で Create React App / webpack-dev-server が `allowedHosts` の空要素を受け取るとスキーマ検証エラーを出す問題が見つかりました（例: "options.allowedHosts[0] should be a non-empty string"）。このリポジトリでは短期的回避策として `frontend/package.json` の start スクリプトに `DANGEROUSLY_DISABLE_HOST_CHECK=true` を追加し起動するようにしています（これにより `allowedHosts='all'` が選択され、エラーを回避します）。
+
+セキュリティ注意: `DANGEROUSLY_DISABLE_HOST_CHECK=true` は開発向けの一時的な回避策です。社内や公開環境で使う際は注意してください。
+
+安全な恒久対応の例:
+
+1. `ALLOWED_HOSTS=127.0.0.1` のように明示的で有効な値を渡す（`start-frontend.ps1` やシェルで指定）。
+2. または `HOST=0.0.0.0` を利用して、CRA の内部で有効な LAN アドレスを組み立てさせる（結果的に allowedHost が非空になる）。
+
+または、両方を一度に起動:
+```powershell
+# 管理者権限で実行
+.\start.ps1
+```
+
+---
+
+## 🔐 ChatGPT (OpenAI) 設定
+
+ChatGPT と連携する場合、バックエンドで OpenAI の API キーを読み込む必要があります。プロジェクトの `backend/.env` に次のように追記してください：
+
+```dotenv
+OPENAI_API_KEY=sk-REPLACE_WITH_YOUR_KEY
+# 任意: 使用するモデル名（デフォルト gpt-5-mini）
+OPENAI_MODEL=gpt-5-mini
+```
+
+もしくは PowerShell セッションで環境変数をセットして起動することも可能です（セッション限定）：
+
+```powershell
+$env:OPENAI_API_KEY = 'sk-...'
+uvicorn app:app --reload --host 0.0.0.0 --port 5000
+```
+
+起動時に `.env` の読み込み状況をログに出力するようになっているため、サーバーの起動ログで `OPENAI_API_KEY loaded` の有無を確認してください。
+
+注意: APIキーは秘密情報です。公開リポジトリにコミットしないでください。キーを置きたくない場合は環境変数で管理してください。
+
+## 🧪 エンドポイント確認（開発者向けテスト手順）
+
+バックエンドが `http://localhost:5000` で起動していることを前提に、PowerShell / curl で簡単に動作確認できます。管理者権限が必要な操作（パケットキャプチャ開始など）は、管理者権限の PowerShell で実行してください。
+
+- キャプチャ開始（例: 任意インターフェース、自動選択可能）
+
+```powershell
+# インターフェース名を指定する場合（Windowsの例: "Ethernet" や "Wi-Fi"）
+$body = @{ interface = 'Wi-Fi'; count = 50 } | ConvertTo-Json
+Invoke-RestMethod -Uri 'http://localhost:5000/api/capture/start' -Method Post -Body $body -ContentType 'application/json'
+
+# インターフェースを指定しないと自動選択される場合があります
+$body = @{ count = 50 } | ConvertTo-Json
+Invoke-RestMethod -Uri 'http://localhost:5000/api/capture/start' -Method Post -Body $body -ContentType 'application/json'
+```
+
+- キャプチャ停止
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/api/capture/stop' -Method Post
+```
+
+期待する挙動（修正後）
+----------------------
+停止リクエスト送信後は、バックエンドで即時にキャプチャ停止処理が走るため、次のようなログが短時間で出力されるはずです：
+
+```
+停止リクエストを受信しました
+キャプチャを停止しました。収集パケット数: <N>
+キャプチャスレッドが正常に終了しました
+```
+
+以前は stop_filter がパケット到着ごとに評価されるため、トラフィックがない状況では停止がタイムアウトまで待たされることがありました。現在は AsyncSniffer を stop() で明示的に中断するためこの挙動は改善されています。
+
+- 統計情報を取得
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/api/capture/statistics' -Method Get | ConvertTo-Json -Depth 5
+```
+
+- チャットボット（テキスト問い合わせ）のテスト
+
+```powershell
+$body = @{ question = 'ネットワークに遅延がある場合、まず何を確認すべきですか？' } | ConvertTo-Json
+Invoke-RestMethod -Uri 'http://localhost:5000/api/chatbot' -Method Post -Body $body -ContentType 'application/json' | ConvertTo-Json -Depth 5
+```
+
+curl での例（Linux/macOS または Windows の curl）:
+
+```bash
+curl -X POST http://localhost:5000/api/chatbot \
+  -H "Content-Type: application/json" \
+  -d '{"question":"ネットワークに遅延がある場合、まず何を確認すべきですか？"}'
+```
+
+期待するレスポンス例（JSON）:
+
+```json
+{
+  "answer": "...説明本文...",
+  "source": "openai"  // または "rule"（ローカルルールによるフォールバック）
+}
+```
+
+サーバーログに `[call_openai_chat]` や `[chatbot] Received question:` のようなログが出力されるようになっています。OpenAIに接続していない場合は `source: "rule"` が返る仕様です。
+
+## 🔧 環境変数一覧
+
+このプロジェクトで使用する主な環境変数の一覧です。`.env` に設定するか PowerShell / シェルの環境変数で指定してください。
+
+- `OPENAI_API_KEY` — OpenAI の API キー（省略すると ChatGPT 連携は無効化され、ローカルルールによる応答になります）。
+- `OPENAI_MODEL` — 利用するモデル（デフォルト: `gpt-5-mini`）。例: `gpt-5-mini`, `gpt-4o-mini` など。
+- `BACKEND_PORT` — バックエンドのポート（デフォルトは `5000` をコード内で利用）。
+- `LOG_LEVEL` — ログ出力レベル（`DEBUG`, `INFO`, `WARNING` など）。
+- `DATABASE_URL` — PostgreSQL の接続文字列（例: `postgresql://app:app@localhost:15432/app`）。
+  - `DATABASE_URL` の代わりに `PGHOST` / `PGPORT` / `PGUSER` / `PGPASSWORD` / `PGDATABASE` を分割指定することも可能です。
+
+例（`backend/.env`）:
+
+```dotenv
+OPENAI_API_KEY=sk-REPLACE_WITH_YOUR_KEY
+OPENAI_MODEL=gpt-5-mini
+# 他の設定は必要に応じて追加
+```
+
+## 🐘 PostgreSQL（Docker）セットアップ
+
+Windowsのタスクマネージャー相当情報（プロセス一覧など）とイベントビューアの内容を自動収集し、分析結果/原データをPostgreSQLへ保存できます（psycopg）。
+
+### 1) PostgreSQLを起動
+
+プロジェクトルートで実行します：
+
+> ⚠️ Docker Desktop が起動していない場合、`docker compose` がエンジンに接続できず失敗します。先に Docker Desktop を起動してください。
+
+```powershell
+docker compose -f .\docker-compose.postgres.yml up -d
+```
+
+### 2) バックエンドに接続情報を設定
+
+`backend/.env` に以下を設定します（サンプル: `backend/.env.sample`）：
+
+```dotenv
+DATABASE_URL=postgresql://app:app@localhost:15432/app
+```
+
+> 補足: `docker-compose.postgres.yml` ではホスト側のポートが `15432`（コンテナ側 `5432`）にマッピングされています。
+
+### 3) DBヘルスチェック
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/api/db/health' -Method Get | ConvertTo-Json -Depth 5
+```
+
+### 4) 収集と保存（API例）
+
+- プロセス収集（save=trueでDB保存）
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/api/system/process-snapshot?save=true' -Method Get | ConvertTo-Json -Depth 6
+```
+
+- イベントログ収集（Systemログ、過去24時間、最大200件）
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/api/windows/eventlog?log_name=System&since_hours=24&max_events=200&save=true' -Method Get | ConvertTo-Json -Depth 6
+```
+
+- まとめて収集（POST）
+
+```powershell
+$body = @{
+  process  = @{ sample_ms = 200; limit = 250; save = $true }
+  eventlog = @{ log_name = 'System'; since_hours = 24; max_events = 200; timeout_s = 30; save = $true }
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri 'http://localhost:5000/api/windows/collect' -Method Post -Body $body -ContentType 'application/json' | ConvertTo-Json -Depth 6
+```
+
+---
+
+## 📋 フロントエンドの「コピー」機能について
+
+フロントエンドには以下のコピー機能があります:
+
+- 各パケット行ごとの「コピー」ボタン: パケットの詳細を JSON テキストとしてクリップボードにコピーできます（`PacketCapture` の UI）。
+- 統計データ全体のコピー: `Packet Analysis` ページに「📋 統計をコピー」ボタンを追加しました。統計オブジェクト全体を整形済みJSONでコピーします。
+
+ブラウザで `navigator.clipboard` が利用できない環境では、自動的にテキストエリアを使ったフォールバックコピーを行います。コピー成功/失敗の短いフィードバックが画面に表示されます。
+
+必要であれば「セクションごと（プロトコル分布、トップトーカー等）のコピー」や「CSVクリップボード出力」などを追加できます。要望があれば教えてください。
+
+---
+
+## 🔧 手動セットアップ方法
+
+### 前提条件
+
+- Python 3.8 以上
+- Node.js 14 以上
+- npm または yarn
+- Windows OS（WiFi情報取得機能はWindows専用）
+
+### バックエンド（Python FastAPI）のセットアップ
+
+1. バックエンドディレクトリに移動:
+```powershell
+cd backend
+```
+
+2. 仮想環境を作成（推奨）:
+```powershell
+python -m venv venv
+```
+
+3. 仮想環境を有効化:
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+4. 必要なパッケージをインストール:
+```powershell
+pip install -r requirements.txt
+```
+
+5. **管理者権限で**バックエンドサーバーを起動:
+```powershell
+# 管理者権限でPowerShellを開いて実行
+uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+```
+
+> ⚠️ **重要**: パケットキャプチャ機能を使用するには、管理者権限が必要です。
+
+バックエンドは `http://localhost:5000` で起動します。
+
+### フロントエンド（React）のセットアップ
+
+1. 新しいターミナルを開き、フロントエンドディレクトリに移動:
+```powershell
+cd frontend
+```
+
+2. 依存パッケージをインストール:
+```powershell
+npm install
+```
+
+3. 開発サーバーを起動:
+```powershell
+npm start
+```
+
+フロントエンドは `http://localhost:3000` で起動し、自動的にブラウザが開きます。
+
+## 📖 使い方
+
+### 1. ネットワーク情報の確認
+
+「ネットワーク情報」タブをクリックすると、PCのネットワーク設定を確認できます。
+- IPアドレス、MACアドレスなどの基本情報が表示されます
+- 各項目には初心者向けの解説が付いています
+
+### 2. WiFi情報の確認
+
+「WiFi情報」タブでは、WiFi接続状況を確認できます。
+- 現在接続中のネットワーク情報
+- 周辺の利用可能なネットワーク一覧
+- シグナル強度やセキュリティ情報
+
+### 3. トラフィック統計の監視
+
+「トラフィック統計」タブでは、ネットワーク使用状況を確認できます。
+- 送受信データ量の累計
+- パケット数のカウント
+- エラーやドロップの監視
+- 自動更新機能（5秒ごと）
+
+### 4. パケットキャプチャとエクスポート
+
+「パケットキャプチャ」タブでは、通信内容を詳しく見ることができます。
+
+#### キャプチャの手順
+1. キャプチャするパケット数を設定（10〜1000個）
+2. 「▶️ キャプチャ開始」ボタンをクリック
+3. リアルタイムでパケット情報が表示されます
+4. 各パケットには詳細な解説が自動的に付きます
+5. 指定数に達すると自動的に停止します
+
+#### エクスポート機能
+キャプチャしたデータは3つの形式でダウンロード可能：
+
+- **📄 JSON形式**: 詳細な解説付き、後でこのアプリで確認可能
+- **📦 PCAP形式**: Wiresharkなどの専門ツールで開ける標準形式
+- **📊 CSV形式**: ExcelやGoogleスプレッドシートで表形式で確認可能
+
+各ボタンをクリックすると、ブラウザのダウンロードフォルダに保存されます。
+
+#### パケット解析の特徴
+- **40種類以上のポート番号を自動判別**: HTTP、HTTPS、SSH、RDP、MySQL など
+- **重要度の自動判定**: セキュリティ関連の通信を強調表示
+- **暗号化の確認**: HTTPとHTTPSを区別して安全性を表示
+- **初心者向け解説**: 各パケットの意味を分かりやすく説明
+
+> ⚠️ **注意**: パケットキャプチャ機能は管理者権限が必要です。
+
+### 5. 相談チャットボットの利用
+
+「相談チャットボット」タブでは、AIによる自動応答機能を利用できます。
+- ネットワークやパケットキャプチャに関する質問を入力
+- よくある質問ボタンをクリックで即座に回答
+- パケット統計データに基づいた分析結果も表示
+- 初心者向けに用語解説やトラブルシューティング情報も提供
+
+### 6. 🪟 システム監視（タスクマネージャー / イベントビューア）
+
+「🪟 システム監視」タブでは、Windows のプロセス情報とイベントログを自動収集し、要約（上位プロセス、イベント集計、エラー/警告サンプルなど）を表示します。
+
+- **DBヘルスチェック**: PostgreSQL 接続設定が正しいか確認します（未設定の場合は `configured: false` になります）。
+- **プロセスを取得**: タスクマネージャー相当（CPU/メモリ上位など）を取得します。
+- **イベントログを取得**: イベントビューア相当（System/Application/Security）を取得します。
+- **DBに保存**: チェックを入れると、取得データを PostgreSQL に保存します。
+
+> ⚠️ イベントログ取得は PowerShell の `Get-WinEvent` を使用します。Windows 以外の環境では利用できません。
+
+## 🛠️ トラブルシューティング
+
+### パケットキャプチャが動作しない
+
+**原因**: 管理者権限がない
+**解決策**: PowerShellを管理者権限で開き、バックエンドを起動してください
+
+```powershell
+# 管理者権限でPowerShellを開いて実行
+cd backend
+.\venv\Scripts\Activate.ps1
+uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+```
+
+### WiFi情報が表示されない
+
+**原因**: WiFiアダプターが無効、またはWindows以外のOS
+**解決策**: 
+- WiFiアダプターが有効になっているか確認
+- この機能はWindows専用です
+
+### インストールエラーが発生する
+
+**原因**: Python環境またはNode.js環境の問題
+**解決策**:
+- Python 3.8以上がインストールされているか確認
+- Node.js 14以上がインストールされているか確認
+- 管理者権限で実行してみる
+
+### `.ps1` が実行できない（ExecutionPolicy）
+
+**症状**: `start-backend.ps1` / `setup-backend.ps1` などが「このシステムではスクリプトの実行が無効…」でブロックされる
+
+**解決策（現在の PowerShell セッションだけ許可）**:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+その後にスクリプトを再実行してください。
+
+### フロントエンドが起動しない（`start-frontend.ps1` / `npm start`）
+
+まずは **フロント単体で起動できるか** を確認します：
+
+1) Node.js / npm が入っているか
+
+```powershell
+node -v
+npm -v
+```
+
+2) 依存関係のインストール（未実施なら必須）
+
+```powershell
+./setup-frontend.ps1
+```
+
+3) 手動で起動（スクリプト差分切り分け）
+
+```powershell
+cd frontend
+npm start
+```
+
+よくある原因と対処:
+
+- `npm` が見つからない → Node.js（LTS）をインストールして PowerShell を開き直してください。
+- `react-scripts` が見つからない → `frontend` で `npm install`（= `setup-frontend.ps1`）を実行してください。
+- 3000番ポートが使用中 → 既存の Node プロセス/別アプリを止めるか、別ポートで起動してください。
+- `webpack-dev-server` の `allowedHosts` 系エラー → 本リポジトリは `DANGEROUSLY_DISABLE_HOST_CHECK=true` による回避策を入れています（開発用途限定）。
+
+フロントは `frontend/package.json` の `proxy` 設定により `http://localhost:5000` のバックエンドへAPIを中継します。
+フロント自体はバックエンドなしでも起動できますが、画面の取得ボタンは失敗するため、動作確認時はバックエンドも起動してください。
+
+### Docker で PostgreSQL が起動できない
+
+**症状**: `docker compose ...` が `dockerDesktopLinuxEngine` などへの接続エラーになる
+
+**原因**: Docker Desktop が未起動 / Docker エンジンが動作していない
+
+**解決策**: Docker Desktop を起動してから、もう一度 `docker compose -f .\docker-compose.postgres.yml up -d` を実行してください。
+
+### ポートがすでに使用されている
+
+**原因**: 5000番ポートまたは3000番ポートが使用中
+**解決策**:
+- バックエンド: uvicornコマンドの`--port 5000`を別のポート番号に変更
+- フロントエンド: `package.json`のproxyのポート番号も合わせて変更
+
+### エクスポートファイルがダウンロードできない
+
+**原因**: バックエンドが起動していない、または管理者権限がない
+**解決策**:
+- バックエンドが正常に起動しているか確認
+- ブラウザのコンソール（F12）でエラーを確認
+- 一度キャプチャを実行してからエクスポートを試す
+
+### パケットキャプチャが自動停止しない
+
+**原因**: ネットワークトラフィックが少ない
+**解決策**:
+- ブラウザで別のWebサイトを開くなどしてトラフィックを発生させる
+- 「⏹️ 停止」ボタンで手動停止も可能
+
+## 📦 技術スタック
+
+### バックエンド
+- **FastAPI 0.104.1**: 高速・モダンなWebフレームワーク
+  - 型ヒントベースの自動バリデーション
+  - 自動生成されるAPI仕様書（OpenAPI/Swagger）
+  - 非同期処理対応
+- **Uvicorn 0.24.0**: 高性能ASGIサーバー
+- **Pydantic**: データバリデーションとシリアライゼーション
+- **psutil 5.9.6**: システム・ネットワーク情報取得
+- **scapy 2.5.0**: パケットキャプチャ・解析
+- **psycopg 3.2.9**: PostgreSQL 接続（JSONB保存）
+- **PostgreSQL 16**: 収集データ保存（`docker-compose.postgres.yml` で起動）
+
+### フロントエンド
+- **React 18.2.0**: UIフレームワーク
+- **Axios 1.6.0**: HTTP通信ライブラリ
+- **CSS3**: モダンなグラデーション・アニメーション
+
+### 開発環境
+- **Python 3.8+**: バックエンド実行環境
+- **Node.js 14+**: フロントエンド開発環境
+- **Windows 10/11**: WiFi情報取得機能に対応
+
+## 🎯 主な特徴
+
+- ✅ **専門知識不要**: 全ての情報に初心者向けの解説付き
+- ✅ **Wireshark不要**: ブラウザだけでパケット解析が可能
+- ✅ **リアルタイム監視**: 通信状況をライブで確認
+- ✅ **多様なエクスポート**: JSON/PCAP/CSV形式に対応
+- ✅ **セキュリティチェック**: 暗号化の有無を自動判定
+- ✅ **ポート番号解説**: 40種類以上のサービスを自動識別
+- ✅ **高速API**: FastAPIベースで高パフォーマンス
+- ✅ **自動API文書**: `http://localhost:5000/docs` でSwagger UI利用可能
+- ✅ **システム監視**: Windows のプロセス/イベントログを収集・要約（PostgreSQL に保存可能）
+
+## ⚠️ 既知の制約と今後の改善
+
+現状把握のための既知の制約と、今後取り組みたい改善案をまとめます。
+
+- Windows優先: 一部の WiFi 関連機能は Windows 向けに実装されています。macOS/Linux での WiFi 情報収集は限定的です。
+- 管理者権限: パケットキャプチャ（scapy/WinPcapなど）には管理者権限が必要です。非特権ユーザーでの動作は保証されません。
+- OpenAI 呼び出し: 現状は同期リクエストをスレッドで回しており、将来的に `httpx` 等の非同期クライアントへ移行して応答性能と信頼性を改善したいです。
+- テストカバレッジ: 自動化されたユニットテストやE2Eテストは限定的です。CI パイプライン（GitHub Actions等）によるテスト導入を計画しています。
+
+改善案（優先順）:
+
+1. OpenAI 呼び出しを非同期化してタイムアウトと再試行を明確にする
+2. セクション毎の「コピー」機能（プロトコル分布だけ、トップトーカーだけ等）を実装
+3. キャプチャ設定を GUI で永続化（プリセット保存）
+4. テストと CI の整備（ユニット + E2E）
+
+
+## 🔒 セキュリティについて
+
+- このツールはローカルネットワークの情報を取得します
+- パケットキャプチャ機能は管理者権限が必要です
+- 取得した情報は外部に送信されません
+- 個人使用または教育目的での使用を想定しています
+- パケットデータは一時ファイルとして作成され、ダウンロード後に自動削除されます
+
+## 🌟 使用例
+
+### ネットワークトラブルシューティング
+- 接続できない原因の特定（DNS、DHCP、ゲートウェイ）
+- パケットロスやエラーの監視
+
+### セキュリティ学習
+- 暗号化通信（HTTPS）と非暗号化通信（HTTP）の違いを理解
+- TCPハンドシェイクの観察
+- 様々なプロトコルの学習
+
+### 開発・デバッグ
+- アプリケーションの通信状況確認
+- APIリクエストの監視
+- ネットワーク遅延の分析
+
+## 📝 ライセンス
+
+このプロジェクトはMITライセンスの下で公開されています。
+
+## 🤝 貢献
+
+バグ報告や機能要望は、GitHubのIssueでお願いします。
+
+## 📧 お問い合わせ
+
+質問や提案がある場合は、GitHubのIssueまたはDiscussionsをご利用ください。
+
+---
+
+**開発者向けメモ**:
+- バックエンド: `backend/app.py` (FastAPI)
+- フロントエンド: `frontend/src/App.js` (React)
+- コンポーネント: `frontend/src/components/` (各機能別に分離)
+- セットアップスクリプト: `setup-backend.ps1`, `setup-frontend.ps1`
+- 起動スクリプト: `start-backend.ps1`, `start-frontend.ps1`, `start.ps1`
+
+## スクリプト一覧（何をするか）
+
+- `setup-backend.ps1` — バックエンド用の仮想環境作成、依存パッケージのインストールを行います。
+- `setup-frontend.ps1` — フロントエンドの `npm install` を実行します。
+- `start-backend.ps1` — 管理者権限でのバックエンド起動を補助するショートカット（内部で `uvicorn` を呼びます）。
+- `start-frontend.ps1` — `npm start` を実行してフロントエンドを起動します。
+- `start.ps1` — フロントエンドとバックエンドを一度に立ち上げるユーティリティ（管理者権限に注意）。
+
+
+**APIドキュメント**:
+バックエンド起動後、以下のURLでAPI仕様書を確認できます：
+- Swagger UI: `http://localhost:5000/docs`
+- ReDoc: `http://localhost:5000/redoc`
+
+**プロジェクト構成**:
+```
+AIcheckNetwork/
+├── backend/
+│   ├── app.py              # FastAPIメインアプリケーション
+│   ├── app_flask.py        # Flask版（バックアップ）
+│   ├── requirements.txt    # Python依存関係
+│   └── venv/              # Python仮想環境
+├── frontend/
+│   ├── src/
+│   │   ├── App.js         # メインコンポーネント
+│   │   ├── App.css        # スタイリング
+│   │   └── components/    # 各機能コンポーネント
+│   ├── package.json       # Node.js依存関係
+│   └── public/            # 静的ファイル
+├── setup-backend.ps1      # バックエンド自動セットアップ
+├── setup-frontend.ps1     # フロントエンド自動セットアップ
+├── start-backend.ps1      # バックエンド起動
+├── start-frontend.ps1     # フロントエンド起動
+├── start.ps1             # 両方同時起動
+└── README.md             # このファイル
+```
