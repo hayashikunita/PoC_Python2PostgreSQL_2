@@ -242,7 +242,7 @@ def collect_startup_apps(*, limit: int = 200, timeout_s: int = 15) -> Dict[str, 
     - Win32_StartupCommand（WMI/CIM）
     - レジストリ Run/RunOnce（HKCU/HKLM, WOW6432Node 含む）
     - スタートアップフォルダ（ユーザー/共通）
-    - StartupApproved（有効/無効の判定）
+    - StartupApproved（有効/無効の推定）
     """
 
     hostname = socket.gethostname()
@@ -256,116 +256,93 @@ def collect_startup_apps(*, limit: int = 200, timeout_s: int = 15) -> Dict[str, 
             "startup_apps": [],
         }
 
-    limit_i = max(1, min(2000, _safe_int(limit, 200)))
+    limit_i = max(1, min(5000, _safe_int(limit, 200)))
     timeout_i = max(5, min(120, _safe_int(timeout_s, 15)))
 
-    # UTF-8 Base64(JSON) で返す（文字化け/壊れ対策）
-    # StartupApproved の先頭バイトは環境差があるが、一般的には 0x02=Enabled, 0x03=Disabled。
-    ps = (
-        "$ErrorActionPreference = 'SilentlyContinue'; "
-        "function Get-ApprovedMap([string]$root) { "
-        "  $map = @{}; "
-        "  $subKeys = @('Run','Run32','StartupFolder','StartupFolder32','Startup','Startup32'); "
-        "  foreach ($sk in $subKeys) { "
-        "    $path = Join-Path $root $sk; "
-        "    try { "
-        "      $key = Get-Item -LiteralPath $path -ErrorAction Stop; "
-        "      foreach ($val in $key.GetValueNames()) { "
-        "        try { "
-        "          $bytes = $key.GetValue($val, $null, 'DoNotExpandEnvironmentNames'); "
-        "          if ($bytes -is [byte[]] -and $bytes.Length -ge 1) { "
-        "            $b0 = [int]$bytes[0]; "
-        "            $st = 'unknown'; "
-        "            if ($b0 -eq 2) { $st = 'enabled' } elseif ($b0 -eq 3) { $st = 'disabled' }; "
-        "            $map[$val] = @{ status = $st; scope = $root; key = $sk; raw0 = $b0 }; "
-        "          } "
-        "        } catch {} "
-        "      } "
-        "    } catch {} "
-        "  } "
-        "  return $map; "
-        "}; "
-        "$approved = @{}; "
-        "$hkcu = 'Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved'; "
-        "$hklm = 'Registry::HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved'; "
-        "$approvedHKCU = Get-ApprovedMap $hkcu; "
-        "$approvedHKLM = Get-ApprovedMap $hklm; "
-        "foreach ($k in $approvedHKCU.Keys) { $approved[$k] = $approvedHKCU[$k] }; "
-        "foreach ($k in $approvedHKLM.Keys) { if (-not $approved.ContainsKey($k)) { $approved[$k] = $approvedHKLM[$k] } }; "
-        "$items = @(); "
-        "try { "
-        "  $cim = Get-CimInstance Win32_StartupCommand | Sort-Object Name | Select-Object -First "
-        f"{limit_i} "
-        "  | Select-Object Name, Command, Location, User; "
-        "  foreach ($x in @($cim)) { "
-        "    $nm = [string]$x.Name; "
-        "    $loc = [string]$x.Location; "
-        "    $hive = 'HKLM'; if ($loc -like 'HKCU*' -or $loc -like 'HKU\\*') { $hive = 'HKCU' }; "
-        "    $akey = $null; if ($loc -like '*WOW6432Node*') { $akey = 'Run32' } elseif ($loc -like '*\\Run*') { $akey = 'Run' } elseif ($loc -like '*Startup*') { $akey = 'StartupFolder' }; "
-        "    $ap = $null; if ($approved.ContainsKey($nm)) { $ap = $approved[$nm] }; "
-        "    $items += [pscustomobject]@{ name=$x.Name; command=$x.Command; location=$x.Location; user=$x.User; source='cim'; enabled=($ap.status); approved_hive=$hive; approved_key=$akey; approved_name=$nm }; "
-        "  } "
-        "} catch {} "
-        "$regPaths = @(" 
-        "'Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'," 
-        "'Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce'," 
-        "'Registry::HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'," 
-        "'Registry::HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce'," 
-        "'Registry::HKEY_LOCAL_MACHINE\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run'," 
-        "'Registry::HKEY_LOCAL_MACHINE\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\RunOnce'" 
-        "); "
-        "foreach ($p in $regPaths) { "
-        "  try { "
-        "    $key = Get-Item -LiteralPath $p -ErrorAction Stop; "
-        "    foreach ($val in $key.GetValueNames()) { "
-        "      try { "
-        "        $cmd = $key.GetValue($val, $null, 'DoNotExpandEnvironmentNames'); "
-        "        $nm = [string]$val; "
-        "        $hive = 'HKLM'; if ($p -like 'Registry::HKEY_CURRENT_USER*') { $hive = 'HKCU' }; "
-        "        $akey = 'Run'; if ($p -like '*WOW6432Node*') { $akey = 'Run32' }; "
-        "        $ap = $null; if ($approved.ContainsKey($nm)) { $ap = $approved[$nm] }; "
-        "        $items += [pscustomobject]@{ name=$nm; command=$cmd; location=$p; user=$null; source='registry'; enabled=($ap.status); approved_hive=$hive; approved_key=$akey; approved_name=$nm }; "
-        "      } catch {} "
-        "    } "
-        "  } catch {} "
-        "}; "
-        "$folders = @(" 
-        "@{ path = [Environment]::GetFolderPath('Startup'); scope='user' }," 
-        "@{ path = [Environment]::GetFolderPath('CommonStartup'); scope='common' }" 
-        "); "
-        "foreach ($f in $folders) { "
-        "  try { "
-        "    $files = Get-ChildItem -LiteralPath $f.path -File -ErrorAction Stop | Sort-Object Name | Select-Object -First "
-        f"{limit_i} "
-        "    ; "
-        "    foreach ($fi in @($files)) { "
-        "      $nm = [string]$fi.BaseName; "
-        "      $hive = 'HKCU'; if ($f.scope -eq 'common') { $hive = 'HKLM' }; "
-        "      $akey = 'StartupFolder'; "
-        "      $aname = [string]$fi.Name; "
-        "      $ap = $null; if ($approved.ContainsKey($nm)) { $ap = $approved[$nm] }; "
-        "      $items += [pscustomobject]@{ name=$nm; command=$fi.FullName; location=$f.path; user=$f.scope; source='startup_folder'; enabled=($ap.status); approved_hive=$hive; approved_key=$akey; approved_name=$aname }; "
-        "    } "
-        "  } catch {} "
-        "}; "
-        "$seen = @{}; $dedup = @(); "
-        "foreach ($it in $items) { "
-        "  $k = ($it.name + '|' + $it.location + '|' + $it.command); "
-        "  if (-not $seen.ContainsKey($k)) { $seen[$k] = $true; $dedup += $it } "
-        "}; "
-        "$dedup = @($dedup | Select-Object -First "
-        f"{limit_i} "
-        "); "
-        "$enabledCount = (@($dedup | Where-Object { $_.enabled -eq 'enabled' })).Count; "
-        "$disabledCount = (@($dedup | Where-Object { $_.enabled -eq 'disabled' })).Count; "
-        "$unknownCount = (@($dedup | Where-Object { $_.enabled -ne 'enabled' -and $_.enabled -ne 'disabled' })).Count; "
-        "$out = [pscustomobject]@{ summary = @{ count = $dedup.Count; enabled = $enabledCount; disabled = $disabledCount; unknown = $unknownCount; limit = "
-        f"{limit_i}" 
-        " }; startup_apps = $dedup }; "
-        "$json = $out | ConvertTo-Json -Depth 6 -Compress; "
-        "if (-not $json) { $json = '{}' }; "
-        "[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($json))"
-    )
+    ps_parts = [
+        "$ErrorActionPreference = 'SilentlyContinue'; ",
+        "$items = @(); $seen = @{}; ",
+        "$approved = @{}; ",
+        "$keys = @('Run','Run32','StartupFolder','StartupFolder32','Startup','Startup32'); ",
+        "foreach ($hive in @('HKCU','HKLM')) { ",
+        "  foreach ($k in $keys) { ",
+        "    $sub = ('Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\' + $k); ",
+        "    $root = 'HKCU:'; if ($hive -eq 'HKLM') { $root = 'HKLM:' }; ",
+        "    $path = ($root + '\\' + $sub); ",
+        "    try { ",
+        "      if (Test-Path $path) { ",
+        "        $rk = Get-Item -LiteralPath $path; ",
+        "        foreach ($n in $rk.GetValueNames()) { ",
+        "          $v = $rk.GetValue($n, $null, 'DoNotExpandEnvironmentNames'); ",
+        "          $b0 = $null; if ($v -is [byte[]] -and $v.Length -ge 1) { $b0 = [int]$v[0] }; ",
+        "          $st = 'unknown'; if ($b0 -eq 2) { $st = 'enabled' } elseif ($b0 -eq 3) { $st = 'disabled' }; ",
+        "          $ak = ($hive + '|' + $k + '|' + $n); $approved[$ak] = $st; ",
+        "        } ",
+        "      } ",
+        "    } catch { } ",
+        "  } ",
+        "}; ",
+        "function Add-Item($name,$command,$location,$user,$source,$approvedHive,$approvedKey,$approvedName) { ",
+        "  if (-not $name) { return }; ",
+        "  $k = (([string]$name).ToLowerInvariant() + '|' + ([string]$command).ToLowerInvariant() + '|' + ([string]$location).ToLowerInvariant() + '|' + ([string]$user).ToLowerInvariant()); ",
+        "  if ($script:seen.ContainsKey($k)) { return }; $script:seen[$k] = $true; ",
+        "  $enabled = 'unknown'; ",
+        "  if ($approvedHive -and $approvedKey -and $approvedName) { ",
+        "    $ak = ([string]$approvedHive + '|' + [string]$approvedKey + '|' + [string]$approvedName); ",
+        "    if ($script:approved.ContainsKey($ak)) { $enabled = $script:approved[$ak] } ",
+        "  }; ",
+        "  $script:items += [pscustomobject]@{ name=$name; command=$command; location=$location; user=$user; source=$source; enabled=$enabled; approved_hive=$approvedHive; approved_key=$approvedKey; approved_name=$approvedName }; ",
+        "}; ",
+        "try { ",
+        "  $cims = Get-CimInstance Win32_StartupCommand -ErrorAction SilentlyContinue; ",
+        "  foreach ($c in @($cims)) { Add-Item $c.Name $c.Command $c.Location $c.User 'cim' $null $null $null } ",
+        "} catch { } ",
+        "$regTargets = @(); ",
+        "$regTargets += @{ hive='HKCU'; base='Software\\Microsoft\\Windows\\CurrentVersion'; name='Run'; approved='Run' }; ",
+        "$regTargets += @{ hive='HKCU'; base='Software\\Microsoft\\Windows\\CurrentVersion'; name='RunOnce'; approved='Run' }; ",
+        "$regTargets += @{ hive='HKLM'; base='Software\\Microsoft\\Windows\\CurrentVersion'; name='Run'; approved='Run' }; ",
+        "$regTargets += @{ hive='HKLM'; base='Software\\Microsoft\\Windows\\CurrentVersion'; name='RunOnce'; approved='Run' }; ",
+        "$regTargets += @{ hive='HKLM'; base='Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion'; name='Run'; approved='Run32' }; ",
+        "$regTargets += @{ hive='HKLM'; base='Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion'; name='RunOnce'; approved='Run32' }; ",
+        "foreach ($t in $regTargets) { ",
+        "  $root = 'HKCU:'; if ($t.hive -eq 'HKLM') { $root = 'HKLM:' }; ",
+        "  $path = ($root + '\\' + $t.base + '\\' + $t.name); ",
+        "  try { ",
+        "    if (Test-Path $path) { ",
+        "      $rk = Get-Item -LiteralPath $path; ",
+        "      foreach ($n in $rk.GetValueNames()) { ",
+        "        $v = $rk.GetValue($n, $null, 'DoNotExpandEnvironmentNames'); ",
+        "        $cmd = $null; if ($v -ne $null) { $cmd = [string]$v }; ",
+        "        $loc = ($t.hive + '\\' + $t.base + '\\' + $t.name); ",
+        "        Add-Item $n $cmd $loc $t.hive ('registry:' + $t.name) $t.hive $t.approved $n; ",
+        "      } ",
+        "    } ",
+        "  } catch { } ",
+        "}; ",
+        "try { ",
+        "  $folders = @(); ",
+        "  $folders += @{ path = [Environment]::GetFolderPath('Startup'); user='HKCU' }; ",
+        "  $folders += @{ path = [Environment]::GetFolderPath('CommonStartup'); user='HKLM' }; ",
+        "  foreach ($f in $folders) { ",
+        "    if ($f.path -and (Test-Path -LiteralPath $f.path)) { ",
+        "      foreach ($fi in Get-ChildItem -LiteralPath $f.path -File -ErrorAction SilentlyContinue) { ",
+        "        $nm = $fi.BaseName; $cmd = $fi.FullName; ",
+        "        Add-Item $nm $cmd $f.path $f.user 'startup_folder' $f.user 'StartupFolder' $fi.Name; ",
+        "      } ",
+        "    } ",
+        "  } ",
+        "} catch { } ",
+        f"$dedup = @($items) | Select-Object -First {limit_i}; ",
+        "$enabledCount = (@($dedup | Where-Object { $_.enabled -eq 'enabled' })).Count; ",
+        "$disabledCount = (@($dedup | Where-Object { $_.enabled -eq 'disabled' })).Count; ",
+        "$unknownCount = (@($dedup | Where-Object { $_.enabled -ne 'enabled' -and $_.enabled -ne 'disabled' })).Count; ",
+        f"$out = [pscustomobject]@{{ summary = @{{ count = $dedup.Count; enabled = $enabledCount; disabled = $disabledCount; unknown = $unknownCount; limit = {limit_i} }}; startup_apps = $dedup }}; ",
+        "$json = $out | ConvertTo-Json -Depth 6 -Compress; ",
+        "if (-not $json) { $json = '{}' }; ",
+        "[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($json))",
+    ]
+
+    ps = "".join(ps_parts)
 
     data, err = _run_powershell_base64_json(ps, timeout_i)
     if err:
@@ -411,117 +388,6 @@ def collect_startup_apps(*, limit: int = 200, timeout_s: int = 15) -> Dict[str, 
         "summary": summary,
         "startup_apps": normalized,
     }
-
-
-def set_startup_app_enabled(
-    *,
-    approved_hive: str,
-    approved_key: str,
-    approved_name: str,
-    enabled: bool,
-    timeout_s: int = 15,
-) -> Dict[str, Any]:
-    """StartupApproved を操作して、スタートアップ項目の有効/無効を切り替える（Windows専用）。"""
-
-    hostname = socket.gethostname()
-    collected_at = _now_iso()
-
-    if not is_windows():
-        return {
-            "collected_at": collected_at,
-            "hostname": hostname,
-            "ok": False,
-            "error": "Not running on Windows",
-        }
-
-    hive = str(approved_hive or "").upper().strip()
-    key = str(approved_key or "").strip()
-    name = str(approved_name or "").strip()
-
-    if hive not in {"HKCU", "HKLM"}:
-        return {
-            "collected_at": collected_at,
-            "hostname": hostname,
-            "ok": False,
-            "error": "invalid approved_hive",
-        }
-
-    if key not in {"Run", "Run32", "StartupFolder", "StartupFolder32", "Startup", "Startup32"}:
-        return {
-            "collected_at": collected_at,
-            "hostname": hostname,
-            "ok": False,
-            "error": "invalid approved_key",
-        }
-
-    if not name or len(name) > 260:
-        return {
-            "collected_at": collected_at,
-            "hostname": hostname,
-            "ok": False,
-            "error": "invalid approved_name",
-        }
-
-    timeout_i = max(5, min(120, _safe_int(timeout_s, 15)))
-
-    req = {
-        "approved_hive": hive,
-        "approved_key": key,
-        "approved_name": name,
-        "enabled": bool(enabled),
-    }
-
-    req64 = base64.b64encode(json.dumps(req, ensure_ascii=False).encode("utf-8")).decode("ascii")
-
-    ps = (
-        "$ErrorActionPreference = 'Stop'; "
-        f"$req64 = '{req64}'; "
-        "$reqJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($req64)); "
-        "$req = $reqJson | ConvertFrom-Json; "
-        "$subPath = ('Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\' + [string]$req.approved_key); "
-        "$path = $subPath; "
-        "$name = [string]$req.approved_name; "
-        "$want = 3; if ($req.enabled -eq $true) { $want = 2 }; "
-        "try { "
-        "  $root = [Microsoft.Win32.Registry]::LocalMachine; if ($req.approved_hive -eq 'HKCU') { $root = [Microsoft.Win32.Registry]::CurrentUser }; "
-        "  $rk = $root.OpenSubKey($subPath, $true); "
-        "  if (-not $rk) { throw ('StartupApproved key not found: ' + $subPath) }; "
-        "  $cur = $rk.GetValue($name, $null, 'DoNotExpandEnvironmentNames'); "
-        "  if (-not ($cur -is [byte[]]) -or $cur.Length -lt 12) { $cur = New-Object byte[] 12 }; "
-        "  $cur[0] = [byte]$want; "
-        "  $rk.SetValue($name, $cur, [Microsoft.Win32.RegistryValueKind]::Binary); "
-        "  $after = $rk.GetValue($name, $null, 'DoNotExpandEnvironmentNames'); "
-        "  $b0 = $null; if ($after -is [byte[]] -and $after.Length -ge 1) { $b0 = [int]$after[0] }; "
-        "  $st = 'unknown'; if ($b0 -eq 2) { $st = 'enabled' } elseif ($b0 -eq 3) { $st = 'disabled' }; "
-        "  $rk.Close(); "
-        "  $out = [pscustomobject]@{ ok = $true; approved_hive = $req.approved_hive; approved_key = $req.approved_key; approved_name = $req.approved_name; enabled = $st; raw0 = $b0; path = $subPath }; "
-        "} catch { "
-        "  $out = [pscustomobject]@{ ok = $false; error = $_.Exception.Message; approved_hive = $req.approved_hive; approved_key = $req.approved_key; approved_name = $req.approved_name; path = $subPath }; "
-        "}; "
-        "$json = $out | ConvertTo-Json -Depth 6 -Compress; "
-        "[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($json))"
-    )
-
-    data, err = _run_powershell_base64_json(ps, timeout_i)
-    if err:
-        return {
-            "collected_at": collected_at,
-            "hostname": hostname,
-            "ok": False,
-            "error": err,
-        }
-
-    if not isinstance(data, dict):
-        return {
-            "collected_at": collected_at,
-            "hostname": hostname,
-            "ok": False,
-            "error": "unexpected payload",
-        }
-
-    data["collected_at"] = collected_at
-    data["hostname"] = hostname
-    return data
 
 
 def _run_powershell_json(command: str, timeout_s: int) -> Tuple[Optional[Any], Optional[str]]:

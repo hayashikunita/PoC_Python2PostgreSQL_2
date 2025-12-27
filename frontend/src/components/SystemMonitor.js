@@ -31,7 +31,6 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
   const [loadingAppHist, setLoadingAppHist] = useState(false);
   const [loadingSvc, setLoadingSvc] = useState(false);
   const [loadingStartup, setLoadingStartup] = useState(false);
-  const [loadingStartupToggleKey, setLoadingStartupToggleKey] = useState(null);
   const [loadingEvt, setLoadingEvt] = useState(false);
   const [loadingEvtLogs, setLoadingEvtLogs] = useState(false);
 
@@ -152,41 +151,6 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
       setError('スタートアップアプリの取得に失敗しました: ' + (e?.message || String(e)));
     } finally {
       setLoadingStartup(false);
-    }
-  };
-
-  const toggleStartupEnabled = async (item, enabled) => {
-    const approvedHive = item?.approved_hive;
-    const approvedKey = item?.approved_key;
-    const approvedName = item?.approved_name;
-    const k = `${approvedHive || ''}:${approvedKey || ''}:${approvedName || ''}`;
-
-    if (!approvedHive || !approvedKey || !approvedName) {
-      setError('この項目は有効/無効の切り替えに必要な情報が不足しています。');
-      return;
-    }
-
-    setLoadingStartupToggleKey(k);
-    setError(null);
-    try {
-      await axios.post(
-        '/api/windows/startup-apps/set-enabled',
-        {
-          approved_hive: approvedHive,
-          approved_key: approvedKey,
-          approved_name: approvedName,
-          enabled: Boolean(enabled),
-        },
-        {
-          params: { timeout_s: 15 },
-        }
-      );
-      await fetchStartupApps();
-    } catch (e) {
-      const msg = e?.response?.data?.detail || e?.message || String(e);
-      setError('スタートアップの切り替えに失敗しました: ' + msg);
-    } finally {
-      setLoadingStartupToggleKey(null);
     }
   };
 
@@ -617,7 +581,6 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
                       <thead>
                         <tr>
                           <th style={{ whiteSpace: 'nowrap' }}>enabled</th>
-                          <th style={{ whiteSpace: 'nowrap' }}>action</th>
                           <th style={{ whiteSpace: 'nowrap' }}>name</th>
                           <th style={{ whiteSpace: 'nowrap' }}>source</th>
                           <th style={{ whiteSpace: 'nowrap' }}>user</th>
@@ -636,35 +599,6 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
                               ) : (
                                 <span className="evt-level">unknown</span>
                               )}
-                            </td>
-                            <td style={{ whiteSpace: 'nowrap' }}>
-                              {(() => {
-                                const canToggle = Boolean(a?.approved_hive && a?.approved_key && a?.approved_name);
-                                const toggleKey = `${a?.approved_hive || ''}:${a?.approved_key || ''}:${a?.approved_name || ''}`;
-                                const busy = loadingStartupToggleKey === toggleKey;
-                                return (
-                                  <div style={{ display: 'flex', gap: '6px' }}>
-                                    <button
-                                      className="button"
-                                      style={{ padding: '6px 10px' }}
-                                      disabled={!canToggle || busy || a?.enabled === 'enabled'}
-                                      onClick={() => toggleStartupEnabled(a, true)}
-                                      title={!canToggle ? '切り替え情報が不足しています' : ''}
-                                    >
-                                      {busy ? '...' : '有効化'}
-                                    </button>
-                                    <button
-                                      className="button"
-                                      style={{ padding: '6px 10px' }}
-                                      disabled={!canToggle || busy || a?.enabled === 'disabled'}
-                                      onClick={() => toggleStartupEnabled(a, false)}
-                                      title={!canToggle ? '切り替え情報が不足しています' : ''}
-                                    >
-                                      {busy ? '...' : '無効化'}
-                                    </button>
-                                  </div>
-                                );
-                              })()}
                             </td>
                             <td style={{ whiteSpace: 'nowrap' }}>{a?.name || ''}</td>
                             <td style={{ whiteSpace: 'nowrap' }}>{a?.source || ''}</td>

@@ -644,41 +644,6 @@ async def windows_startup_apps(
     return payload
 
 
-class StartupAppToggleRequest(BaseModel):
-    approved_hive: str
-    approved_key: str
-    approved_name: str
-    enabled: bool
-
-
-@app.post("/api/windows/startup-apps/set-enabled")
-async def windows_startup_apps_set_enabled(
-    req: StartupAppToggleRequest,
-    timeout_s: int = Query(15, ge=5, le=120),
-):
-    """スタートアップ項目の有効/無効を切り替える（StartupApproved を更新）。"""
-    try:
-        payload = await asyncio.wait_for(
-            run_in_threadpool(
-                windows_collect.set_startup_app_enabled,
-                approved_hive=req.approved_hive,
-                approved_key=req.approved_key,
-                approved_name=req.approved_name,
-                enabled=req.enabled,
-                timeout_s=timeout_s,
-            ),
-            timeout=timeout_s + 5,
-        )
-    except asyncio.TimeoutError:
-        raise HTTPException(status_code=504, detail="startup toggle timed out")
-
-    if isinstance(payload, dict) and payload.get("ok") is False:
-        # HKLM は管理者権限が必要なことがあるため、まずは 400 で返す
-        raise HTTPException(status_code=400, detail=payload.get("error") or "startup toggle failed")
-
-    return payload
-
-
 @app.post("/api/system/app-history/sample")
 async def app_history_sample(
     save: bool = Query(True),
