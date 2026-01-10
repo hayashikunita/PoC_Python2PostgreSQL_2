@@ -84,13 +84,12 @@ function PacketAnalysis() {
       </div>
     );
   }
-
   if (!statistics || statistics.total_packets === 0) {
     return (
       <div className="card">
         <h2>📊 パケットキャプチャ統計解析</h2>
         <div className="packet-explanation" style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ color: '#667eea', marginBottom: '0.8rem' }}>
+          <h3 style={{ color: 'var(--accent)', marginBottom: '0.8rem' }}>
             💡 パケットキャプチャの統計的分析
           </h3>
           <p style={{ lineHeight: '1.8' }}>
@@ -108,7 +107,7 @@ function PacketAnalysis() {
         </div>
         <div className="info-item" style={{ textAlign: 'center', marginTop: '2rem' }}>
           <p>パケットキャプチャを実行してから、このページで統計情報を確認できます。</p>
-          <p style={{ marginTop: '1rem', color: '#666' }}>
+          <p style={{ marginTop: '1rem', color: 'var(--muted)' }}>
             「パケットキャプチャ」タブでパケットを収集してください。
           </p>
         </div>
@@ -222,10 +221,11 @@ function PacketAnalysis() {
         marginBottom: '2rem'
       }}>
         <div style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'var(--surface)',
           padding: '1.5rem',
           borderRadius: '12px',
-          color: 'white',
+          color: 'var(--accent-strong)',
+          border: '1px solid var(--border)',
           textAlign: 'center'
         }}>
           <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>
@@ -235,10 +235,11 @@ function PacketAnalysis() {
         </div>
 
         <div style={{
-          background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+          background: 'var(--surface)',
           padding: '1.5rem',
           borderRadius: '12px',
-          color: 'white',
+          color: 'var(--accent-strong)',
+          border: '1px solid var(--border)',
           textAlign: 'center'
         }}>
           <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>
@@ -248,10 +249,11 @@ function PacketAnalysis() {
         </div>
 
         <div style={{
-          background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+          background: 'var(--surface)',
           padding: '1.5rem',
           borderRadius: '12px',
-          color: 'white',
+          color: 'var(--accent-strong)',
+          border: '1px solid var(--border)',
           textAlign: 'center'
         }}>
           <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>
@@ -261,12 +263,11 @@ function PacketAnalysis() {
         </div>
 
         <div style={{
-          background: securityScore > 50 
-            ? 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
-            : 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+          background: 'var(--surface)',
           padding: '1.5rem',
           borderRadius: '12px',
-          color: 'white',
+          color: 'var(--accent-strong)',
+          border: '1px solid var(--border)',
           textAlign: 'center'
         }}>
           <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>
@@ -315,7 +316,8 @@ function PacketAnalysis() {
                   </h4>
                   {anomaly_detection.port_scanning.map((item, idx) => (
                     <div key={idx} style={{ 
-                      backgroundColor: 'white', 
+                      backgroundColor: 'var(--surface)',
+                      border: '1px solid var(--border)',
                       padding: '10px', 
                       borderRadius: '5px',
                       marginBottom: '8px'
@@ -326,7 +328,7 @@ function PacketAnalysis() {
                       <div style={{ fontSize: '13px', marginTop: '5px' }}>
                         {item.ports_accessed}個のポートに接続
                       </div>
-                      <div style={{ fontSize: '12px', color: '#666', marginTop: '3px' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '3px' }}>
                         {item.description}
                       </div>
                     </div>
@@ -347,7 +349,8 @@ function PacketAnalysis() {
                   </h4>
                   {anomaly_detection.syn_flood.map((item, idx) => (
                     <div key={idx} style={{ 
-                      backgroundColor: 'white', 
+                      backgroundColor: 'var(--surface)',
+                      border: '1px solid var(--border)',
                       padding: '10px', 
                       borderRadius: '5px',
                       marginBottom: '8px'
@@ -358,7 +361,7 @@ function PacketAnalysis() {
                       <div style={{ fontSize: '13px', marginTop: '5px' }}>
                         {item.syn_count}個のSYNパケット
                       </div>
-                      <div style={{ fontSize: '12px', color: '#666', marginTop: '3px' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '3px' }}>
                         {item.description}
                       </div>
                     </div>
@@ -379,7 +382,8 @@ function PacketAnalysis() {
                   </h4>
                   {anomaly_detection.unusual_ports.map((item, idx) => (
                     <div key={idx} style={{ 
-                      backgroundColor: 'white', 
+                      backgroundColor: 'var(--surface)',
+                      border: '1px solid var(--border)',
                       padding: '10px', 
                       borderRadius: '5px',
                       marginBottom: '8px'
@@ -390,7 +394,7 @@ function PacketAnalysis() {
                       <div style={{ fontSize: '13px', marginTop: '5px' }}>
                         {item.count}回の使用
                       </div>
-                      <div style={{ fontSize: '12px', color: '#666', marginTop: '3px' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '3px' }}>
                         {item.description}
                       </div>
                     </div>
@@ -411,7 +415,8 @@ function PacketAnalysis() {
                   </h4>
                   {anomaly_detection.high_traffic_ips.map((item, idx) => (
                     <div key={idx} style={{ 
-                      backgroundColor: 'white', 
+                      backgroundColor: 'var(--surface)',
+                      border: '1px solid var(--border)',
                       padding: '10px', 
                       borderRadius: '5px',
                       marginBottom: '8px'
@@ -422,7 +427,7 @@ function PacketAnalysis() {
                       <div style={{ fontSize: '13px', marginTop: '5px' }}>
                         {item.packet_count}パケット
                       </div>
-                      <div style={{ fontSize: '12px', color: '#666', marginTop: '3px' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '3px' }}>
                         {item.description}
                       </div>
                     </div>
@@ -443,7 +448,8 @@ function PacketAnalysis() {
                   </h4>
                   {anomaly_detection.failed_connections.map((item, idx) => (
                     <div key={idx} style={{ 
-                      backgroundColor: 'white', 
+                      backgroundColor: 'var(--surface)',
+                      border: '1px solid var(--border)',
                       padding: '10px', 
                       borderRadius: '5px',
                       marginBottom: '8px'
@@ -454,7 +460,7 @@ function PacketAnalysis() {
                       <div style={{ fontSize: '13px', marginTop: '5px' }}>
                         {item.rst_count}回の接続失敗
                       </div>
-                      <div style={{ fontSize: '12px', color: '#666', marginTop: '3px' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '3px' }}>
                         {item.description}
                       </div>
                     </div>
@@ -536,7 +542,8 @@ function PacketAnalysis() {
 
                   <div style={{ 
                     padding: '10px',
-                    backgroundColor: 'white',
+                    backgroundColor: 'var(--surface)',
+                    border: '1px solid var(--border)',
                     borderRadius: '5px',
                     fontSize: '14px',
                     fontWeight: 'bold',
@@ -553,8 +560,8 @@ function PacketAnalysis() {
 
       {/* プロトコル分布 */}
       <div style={{ marginBottom: '2rem' }}>
-        <h3 style={{ color: '#667eea', marginBottom: '1rem' }}>🔗 プロトコル分布</h3>
-        <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px' }}>
+        <h3 style={{ color: 'var(--accent)', marginBottom: '1rem' }}>🔗 プロトコル分布</h3>
+        <div style={{ background: 'var(--surface-2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
           {protocolPercentages.map(({ protocol, count, percentage }) => (
             <div key={protocol} style={{ marginBottom: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
@@ -564,16 +571,14 @@ function PacketAnalysis() {
               <div style={{ 
                 width: '100%', 
                 height: '20px', 
-                background: '#e0e0e0', 
+                background: 'var(--border)', 
                 borderRadius: '10px',
                 overflow: 'hidden'
               }}>
                 <div style={{
                   width: `${percentage}%`,
                   height: '100%',
-                  background: protocol === 'TCP' ? '#667eea' : 
-                             protocol === 'UDP' ? '#f093fb' :
-                             protocol === 'ICMP' ? '#4facfe' : '#43e97b',
+                  background: 'var(--accent)',
                   transition: 'width 0.3s ease'
                 }}></div>
               </div>
@@ -584,7 +589,7 @@ function PacketAnalysis() {
 
       {/* パケットサイズ統計 */}
       <div style={{ marginBottom: '2rem' }}>
-        <h3 style={{ color: '#667eea', marginBottom: '1rem' }}>📏 パケットサイズ統計</h3>
+        <h3 style={{ color: 'var(--accent)', marginBottom: '1rem' }}>📏 パケットサイズ統計</h3>
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
@@ -602,7 +607,7 @@ function PacketAnalysis() {
           </div>
         </div>
         
-        <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px' }}>
+        <div style={{ background: 'var(--surface-2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
           <h4 style={{ marginBottom: '1rem' }}>サイズ分布</h4>
           {Object.entries(packet_size_stats.size_distribution).map(([range, count]) => (
             <div key={range} style={{ marginBottom: '1rem' }}>
@@ -613,14 +618,14 @@ function PacketAnalysis() {
               <div style={{ 
                 width: '100%', 
                 height: '15px', 
-                background: '#e0e0e0', 
+                background: 'var(--border)', 
                 borderRadius: '8px',
                 overflow: 'hidden'
               }}>
                 <div style={{
                   width: `${(count / total_packets) * 100}%`,
                   height: '100%',
-                  background: '#667eea',
+                  background: 'var(--accent)',
                   transition: 'width 0.3s ease'
                 }}></div>
               </div>
@@ -631,20 +636,20 @@ function PacketAnalysis() {
 
       {/* トップポート */}
       <div style={{ marginBottom: '2rem' }}>
-        <h3 style={{ color: '#667eea', marginBottom: '1rem' }}>🔌 よく使われるポート TOP20</h3>
-        <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px' }}>
+        <h3 style={{ color: 'var(--accent)', marginBottom: '1rem' }}>🔌 よく使われるポート TOP20</h3>
+        <div style={{ background: 'var(--surface-2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem' }}>
             {port_distribution.top_ports.slice(0, 20).map(({ port, count }) => (
               <div key={port} style={{ 
                 padding: '0.5rem',
-                background: 'white',
+                background: 'var(--surface)',
                 borderRadius: '6px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
               }}>
                 <span><strong>ポート {port}</strong></span>
-                <span style={{ color: '#667eea' }}>{count}回</span>
+                <span style={{ color: 'var(--accent)' }}>{count}回</span>
               </div>
             ))}
           </div>
@@ -653,27 +658,27 @@ function PacketAnalysis() {
 
       {/* トップトーカー */}
       <div style={{ marginBottom: '2rem' }}>
-        <h3 style={{ color: '#667eea', marginBottom: '1rem' }}>💬 トップトーカー（通信量TOP10）</h3>
-        <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px' }}>
+        <h3 style={{ color: 'var(--accent)', marginBottom: '1rem' }}>💬 トップトーカー（通信量TOP10）</h3>
+        <div style={{ background: 'var(--surface-2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
           {top_talkers.map(({ ip, bytes, packets }, index) => (
             <div key={ip} style={{ 
               marginBottom: '1rem',
               padding: '1rem',
-              background: 'white',
+              background: 'var(--surface)',
               borderRadius: '8px',
-              borderLeft: '4px solid #667eea'
+              borderLeft: '4px solid var(--accent)'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
                     #{index + 1} {ip}
                   </div>
-                  <div style={{ color: '#666', fontSize: '0.9rem', marginTop: '0.3rem' }}>
+                  <div style={{ color: 'var(--muted)', fontSize: '0.9rem', marginTop: '0.3rem' }}>
                     {packets}パケット
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#667eea' }}>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--accent)' }}>
                     {(bytes / 1024).toFixed(1)} KB
                   </div>
                 </div>
@@ -685,13 +690,13 @@ function PacketAnalysis() {
 
       {/* IPアドレス統計 */}
       <div style={{ marginBottom: '2rem' }}>
-        <h3 style={{ color: '#667eea', marginBottom: '1rem' }}>🌐 IPアドレス統計</h3>
+        <h3 style={{ color: 'var(--accent)', marginBottom: '1rem' }}>🌐 IPアドレス統計</h3>
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
           gap: '1rem'
         }}>
-          <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px' }}>
+          <div style={{ background: 'var(--surface-2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
             <h4>送信元IP TOP10</h4>
             {ip_statistics.top_src_ips.map(([ip, count]) => (
               <div key={ip} style={{ 
@@ -699,16 +704,16 @@ function PacketAnalysis() {
                 justifyContent: 'space-between',
                 padding: '0.5rem',
                 marginTop: '0.5rem',
-                background: 'white',
+                background: 'var(--surface)',
                 borderRadius: '6px'
               }}>
                 <span>{ip}</span>
-                <span style={{ color: '#667eea', fontWeight: 'bold' }}>{count}</span>
+                <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{count}</span>
               </div>
             ))}
           </div>
 
-          <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px' }}>
+          <div style={{ background: 'var(--surface-2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
             <h4>宛先IP TOP10</h4>
             {ip_statistics.top_dst_ips.map(([ip, count]) => (
               <div key={ip} style={{ 
@@ -716,11 +721,11 @@ function PacketAnalysis() {
                 justifyContent: 'space-between',
                 padding: '0.5rem',
                 marginTop: '0.5rem',
-                background: 'white',
+                background: 'var(--surface)',
                 borderRadius: '6px'
               }}>
                 <span>{ip}</span>
-                <span style={{ color: '#667eea', fontWeight: 'bold' }}>{count}</span>
+                <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{count}</span>
               </div>
             ))}
           </div>
@@ -729,8 +734,8 @@ function PacketAnalysis() {
 
       {/* セキュリティ分析 */}
       <div style={{ marginBottom: '2rem' }}>
-        <h3 style={{ color: '#667eea', marginBottom: '1rem' }}>🔒 セキュリティ分析</h3>
-        <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px' }}>
+        <h3 style={{ color: 'var(--accent)', marginBottom: '1rem' }}>🔒 セキュリティ分析</h3>
+        <div style={{ background: 'var(--surface-2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
@@ -780,7 +785,7 @@ function PacketAnalysis() {
 
       {/* 時系列分析 */}
       <div style={{ marginBottom: '2rem' }}>
-        <h3 style={{ color: '#667eea', marginBottom: '1rem' }}>⏱️ 時系列分析</h3>
+        <h3 style={{ color: 'var(--accent)', marginBottom: '1rem' }}>⏱️ 時系列分析</h3>
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -808,19 +813,19 @@ function PacketAnalysis() {
       {/* TCPフラグ統計 */}
       {Object.keys(tcp_flags).length > 0 && (
         <div style={{ marginBottom: '2rem' }}>
-          <h3 style={{ color: '#667eea', marginBottom: '1rem' }}>🚩 TCPフラグ統計</h3>
-          <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px' }}>
+          <h3 style={{ color: 'var(--accent)', marginBottom: '1rem' }}>🚩 TCPフラグ統計</h3>
+          <div style={{ background: 'var(--surface-2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '0.5rem' }}>
               {Object.entries(tcp_flags).map(([flag, count]) => (
                 <div key={flag} style={{ 
                   padding: '0.5rem',
-                  background: 'white',
+                  background: 'var(--surface)',
                   borderRadius: '6px',
                   textAlign: 'center',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                 }}>
-                  <div style={{ fontWeight: 'bold', color: '#667eea' }}>{flag}</div>
-                  <div style={{ fontSize: '0.9rem', color: '#666' }}>{count}個</div>
+                  <div style={{ fontWeight: 'bold', color: 'var(--accent)' }}>{flag}</div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>{count}個</div>
                 </div>
               ))}
             </div>

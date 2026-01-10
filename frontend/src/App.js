@@ -6,6 +6,13 @@ import PacketCapture from './components/PacketCapture';
 import PacketAnalysis from './components/PacketAnalysis';
 import PacketChatbot from './components/PacketChatbot';
 import SystemMonitor from './components/SystemMonitor';
+import RegistryEditor from './components/RegistryEditor';
+import ConnectivityCheck from './components/ConnectivityCheck';
+import SecuritySummary from './components/SecuritySummary';
+import ConnectionsList from './components/ConnectionsList';
+import ExportReport from './components/ExportReport';
+import LanDevices from './components/LanDevices';
+import NmapScan from './components/NmapScan';
 import './App.css';
 
 function App() {
@@ -38,6 +45,18 @@ function App() {
           📊 トラフィック統計
         </button>
         <button
+          className={activeTab === 'lanDevices' ? 'active' : ''}
+          onClick={() => setActiveTab('lanDevices')}
+        >
+          🖧 LAN機器一覧
+        </button>
+        <button
+          className={activeTab === 'nmap' ? 'active' : ''}
+          onClick={() => setActiveTab('nmap')}
+        >
+          🗺️ NMAPスキャン
+        </button>
+        <button
           className={activeTab === 'capture' ? 'active' : ''}
           onClick={() => setActiveTab('capture')}
         >
@@ -68,6 +87,36 @@ function App() {
           📜 イベントビュアー
         </button>
         <button
+          className={activeTab === 'registry' ? 'active' : ''}
+          onClick={() => setActiveTab('registry')}
+        >
+          レジストリエディタ
+        </button>
+        <button
+          className={activeTab === 'connectivity' ? 'active' : ''}
+          onClick={() => setActiveTab('connectivity')}
+        >
+          🧪 疎通チェック
+        </button>
+        <button
+          className={activeTab === 'securitySummary' ? 'active' : ''}
+          onClick={() => setActiveTab('securitySummary')}
+        >
+          🛡️ セキュリティ要約
+        </button>
+        <button
+          className={activeTab === 'connections' ? 'active' : ''}
+          onClick={() => setActiveTab('connections')}
+        >
+          🔌 接続先一覧
+        </button>
+        <button
+          className={activeTab === 'exportReport' ? 'active' : ''}
+          onClick={() => setActiveTab('exportReport')}
+        >
+          📄 全体レポート
+        </button>
+        <button
           className={activeTab === 'chatbot' ? 'active' : ''}
           onClick={() => setActiveTab('chatbot')}
         >
@@ -79,11 +128,18 @@ function App() {
         {activeTab === 'network' && <NetworkInfo />}
         {activeTab === 'wifi' && <WiFiInfo />}
         {activeTab === 'stats' && <NetworkStats />}
+        {activeTab === 'lanDevices' && <LanDevices />}
+        {activeTab === 'nmap' && <NmapScan />}
         {activeTab === 'capture' && <PacketCapture />}
         {activeTab === 'analysis' && <PacketAnalysis />}
         {activeTab === 'sysSpecs' && <SystemMonitor initialTab="specs" showSubTabs={false} />}
         {activeTab === 'sysProcess' && <SystemMonitor initialTab="process" showSubTabs={false} />}
         {activeTab === 'sysEventlog' && <SystemMonitor initialTab="eventlog" showSubTabs={false} />}
+        {activeTab === 'registry' && <RegistryEditor />}
+        {activeTab === 'connectivity' && <ConnectivityCheck />}
+        {activeTab === 'securitySummary' && <SecuritySummary />}
+        {activeTab === 'connections' && <ConnectionsList />}
+        {activeTab === 'exportReport' && <ExportReport />}
         {activeTab === 'chatbot' && <PacketChatbot />}
       </main>
 

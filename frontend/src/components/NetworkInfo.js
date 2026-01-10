@@ -43,13 +43,13 @@ function NetworkInfo() {
       
       {networkInfo.interfaces && networkInfo.interfaces.map((iface, index) => (
         <div key={index} style={{ marginBottom: '2rem' }}>
-          <h4 style={{ color: '#764ba2', marginTop: '1rem' }}>
+          <h4 style={{ color: 'var(--accent)', marginTop: '1rem' }}>
             📡 {iface.name}
           </h4>
           
           {iface.ipv4 && iface.ipv4.length > 0 && (
             <div>
-              <h5 style={{ color: '#667eea', marginTop: '1rem' }}>IPv4アドレス</h5>
+              <h5 style={{ color: 'var(--accent)', marginTop: '1rem' }}>IPv4アドレス</h5>
               {iface.ipv4.map((ip, idx) => (
                 <div key={idx} className="info-item">
                   <div><strong>IPアドレス:</strong> {ip.address}</div>
@@ -66,7 +66,7 @@ function NetworkInfo() {
 
           {iface.ipv6 && iface.ipv6.length > 0 && (
             <div>
-              <h5 style={{ color: '#667eea', marginTop: '1rem' }}>IPv6アドレス</h5>
+              <h5 style={{ color: 'var(--accent)', marginTop: '1rem' }}>IPv6アドレス</h5>
               {iface.ipv6.map((ip, idx) => (
                 <div key={idx} className="info-item">
                   <div><strong>IPアドレス:</strong> {ip.address}</div>

@@ -48,43 +48,62 @@ def connect() -> Connection[Any]:
 
 
 def ensure_schema(conn: Connection[Any]) -> None:
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS process_snapshots (
-              id BIGSERIAL PRIMARY KEY,
-              collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-              hostname TEXT,
-              summary JSONB NOT NULL,
-              processes JSONB NOT NULL
-            );
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS eventlog_batches (
-              id BIGSERIAL PRIMARY KEY,
-              collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-              hostname TEXT,
-              log_name TEXT NOT NULL,
-              since_hours INTEGER NOT NULL,
-              max_events INTEGER NOT NULL,
-              summary JSONB NOT NULL,
-              events JSONB NOT NULL
-            );
-            """
-        )
+        with conn.cursor() as cur:
+                cur.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS process_snapshots (
+                            id BIGSERIAL PRIMARY KEY,
+                            collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                            hostname TEXT,
+                            summary JSONB NOT NULL,
+                            processes JSONB NOT NULL
+                        );
+                        """
+                )
+                cur.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS eventlog_batches (
+                            id BIGSERIAL PRIMARY KEY,
+                            collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                            hostname TEXT,
+                            log_name TEXT NOT NULL,
+                            since_hours INTEGER NOT NULL,
+                            max_events INTEGER NOT NULL,
+                            summary JSONB NOT NULL,
+                            events JSONB NOT NULL
+                        );
+                        """
+                )
+                cur.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS app_usage_samples (
+                            id BIGSERIAL PRIMARY KEY,
+                            collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                            hostname TEXT,
+                            sample JSONB NOT NULL
+                        );
+                        """
+                )
 
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS app_usage_samples (
-              id BIGSERIAL PRIMARY KEY,
-              collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-              hostname TEXT,
-              sample JSONB NOT NULL
-            );
-            """
-        )
+                cur.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS chat_messages (
+                            id BIGSERIAL PRIMARY KEY,
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                            conversation_id TEXT NOT NULL,
+                            role TEXT NOT NULL,
+                            content TEXT NOT NULL,
+                            source TEXT,
+                            meta JSONB
+                        );
+                        """
+                )
+                cur.execute(
+                        """
+                        CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_created_at
+                            ON chat_messages (conversation_id, created_at);
+                        """
+                )
 
 
 def db_health() -> Dict[str, Any]:
@@ -191,5 +210,87 @@ def fetch_app_usage_samples_since(*, hostname: Optional[str], since_hours: int, 
     with connect() as conn:
         with conn.cursor() as cur:
             cur.execute(sql, params)
+            rows = cur.fetchall() or []
+            return [dict(r) for r in rows]
+
+
+def insert_chat_message(
+    *,
+    conversation_id: str,
+    role: str,
+    content: str,
+    source: Optional[str] = None,
+    meta: Optional[Dict[str, Any]] = None,
+) -> int:
+    conversation_id_s = (conversation_id or "default").strip() or "default"
+    role_s = (role or "").strip()
+    if role_s not in {"system", "user", "assistant"}:
+        role_s = "user"
+
+    content_s = (content or "").strip()
+    if not content_s:
+        return -1
+
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO chat_messages (conversation_id, role, content, source, meta)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (conversation_id_s, role_s, content_s, source, Jsonb(meta) if meta is not None else None),
+            )
+            row = cur.fetchone()
+            return int(row["id"]) if row and "id" in row else -1
+
+
+def fetch_chat_messages(*, conversation_id: str, limit: int = 200) -> List[Dict[str, Any]]:
+    conversation_id_s = (conversation_id or "default").strip() or "default"
+    limit_i = max(1, min(1000, int(limit)))
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, created_at, conversation_id, role, content, source
+                FROM chat_messages
+                WHERE conversation_id = %s
+                ORDER BY created_at ASC
+                LIMIT %s
+                """,
+                (conversation_id_s, limit_i),
+            )
+            rows = cur.fetchall() or []
+            return [dict(r) for r in rows]
+
+
+def clear_chat_messages(*, conversation_id: str) -> int:
+    conversation_id_s = (conversation_id or "default").strip() or "default"
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM chat_messages WHERE conversation_id = %s",
+                (conversation_id_s,),
+            )
+            return int(cur.rowcount or 0)
+
+
+def list_chat_conversations(*, limit: int = 100) -> List[Dict[str, Any]]:
+    limit_i = max(1, min(500, int(limit)))
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                  conversation_id,
+                  MAX(created_at) AS last_message_at,
+                  COUNT(*)::BIGINT AS message_count
+                FROM chat_messages
+                GROUP BY conversation_id
+                ORDER BY last_message_at DESC
+                LIMIT %s
+                """,
+                (limit_i,),
+            )
             rows = cur.fetchall() or []
             return [dict(r) for r in rows]

@@ -149,7 +149,7 @@ function PacketCapture() {
       <h2>🔍 パケットキャプチャ</h2>
 
       <div className="packet-explanation" style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ color: '#667eea', marginBottom: '0.8rem' }}>💡 Wireshark不要の簡単パケット解析</h3>
+        <h3 style={{ color: 'var(--accent)', marginBottom: '0.8rem' }}>💡 Wireshark不要の簡単パケット解析</h3>
         <p style={{ lineHeight: '1.8' }}>
           <strong>このツールでできること：</strong>
         </p>
@@ -184,7 +184,7 @@ function PacketCapture() {
           style={{
             padding: '0.5rem',
             borderRadius: '6px',
-            border: '2px solid #667eea',
+            border: '2px solid var(--border)',
             fontSize: '1rem',
             width: '100px'
           }}
@@ -217,12 +217,12 @@ function PacketCapture() {
 
       {packets.length > 0 && (
         <div style={{ 
-          background: '#f8f9fa', 
+          background: 'var(--surface-2)', 
           padding: '1rem', 
           borderRadius: '8px',
           marginBottom: '1.5rem'
         }}>
-          <h4 style={{ color: '#667eea', marginBottom: '1rem' }}>
+          <h4 style={{ color: 'var(--accent)', marginBottom: '1rem' }}>
             💾 キャプチャデータのエクスポート
           </h4>
           <p style={{ marginBottom: '1rem', fontSize: '0.95rem' }}>
@@ -254,7 +254,7 @@ function PacketCapture() {
           <div style={{ 
             marginTop: '1rem', 
             fontSize: '0.9rem', 
-            color: '#666',
+            color: 'var(--muted)',
             lineHeight: '1.6'
           }}>
             <strong>ファイル形式の説明：</strong>
@@ -288,7 +288,7 @@ function PacketCapture() {
                   borderLeftColor: 
                     packet.importance === 'high' ? '#e74c3c' :
                     packet.importance === 'medium' ? '#f39c12' :
-                    packet.importance === 'low' ? '#95a5a6' : '#667eea',
+                    packet.importance === 'low' ? 'var(--muted)' : 'var(--accent)',
                   borderLeftWidth: packet.importance === 'high' ? '6px' : '4px'
                 }}
               >
@@ -311,7 +311,7 @@ function PacketCapture() {
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#666' }}>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
                       {new Date(packet.timestamp).toLocaleTimeString('ja-JP')}
                     </span>
                     <button

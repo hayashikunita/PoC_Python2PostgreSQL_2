@@ -275,7 +275,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
 
             {specs.os && (
               <div style={{ marginTop: '0.5rem' }}>
-                <h4 style={{ color: '#667eea', marginBottom: '0.25rem' }}>OS</h4>
+                <h4 style={{ color: 'var(--accent)', marginBottom: '0.25rem' }}>OS</h4>
                 <div><strong>system:</strong> {specs.os.system}</div>
                 <div><strong>release:</strong> {specs.os.release}</div>
                 <div><strong>version:</strong> {String(specs.os.version)}</div>
@@ -285,7 +285,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
 
             {specs.cpu && (
               <div style={{ marginTop: '0.75rem' }}>
-                <h4 style={{ color: '#667eea', marginBottom: '0.25rem' }}>CPU</h4>
+                <h4 style={{ color: 'var(--accent)', marginBottom: '0.25rem' }}>CPU</h4>
                 <div><strong>physical_cores:</strong> {String(specs.cpu.physical_cores)}</div>
                 <div><strong>logical_cores:</strong> {String(specs.cpu.logical_cores)}</div>
                 {specs.cpu.freq && (specs.cpu.freq.current_mhz || specs.cpu.freq.max_mhz) && (
@@ -300,7 +300,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
 
             {specs.memory && (
               <div style={{ marginTop: '0.75rem' }}>
-                <h4 style={{ color: '#667eea', marginBottom: '0.25rem' }}>メモリ</h4>
+                <h4 style={{ color: 'var(--accent)', marginBottom: '0.25rem' }}>メモリ</h4>
                 <div><strong>total:</strong> {formatBytes(specs.memory.total || 0)}</div>
                 <div><strong>available:</strong> {formatBytes(specs.memory.available || 0)}</div>
               </div>
@@ -308,7 +308,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
 
             {Array.isArray(specs.disks) && specs.disks.length > 0 && (
               <div style={{ marginTop: '0.75rem' }}>
-                <h4 style={{ color: '#667eea', marginBottom: '0.25rem' }}>ディスク</h4>
+                <h4 style={{ color: 'var(--accent)', marginBottom: '0.25rem' }}>ディスク</h4>
                 {specs.disks.slice(0, 12).map((d, idx) => (
                   <div key={idx} className="packet-item" style={{ marginBottom: '0.5rem' }}>
                     <div><strong>{d.mountpoint || d.device || 'disk'}</strong> {d.fstype ? `(${d.fstype})` : ''}</div>
@@ -326,7 +326,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
             )}
 
             <div style={{ marginTop: '0.75rem' }}>
-              <h4 style={{ color: '#667eea', marginBottom: '0.25rem' }}>GPU</h4>
+              <h4 style={{ color: 'var(--accent)', marginBottom: '0.25rem' }}>GPU</h4>
               {Array.isArray(specs.gpu) && specs.gpu.length > 0 ? (
                 <div>
                   {specs.gpu.slice(0, 6).map((g, idx) => (
@@ -424,7 +424,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
 
             {proc.summary && (
               <div>
-                <h4 style={{ color: '#667eea', marginBottom: '0.5rem' }}>概要</h4>
+                <h4 style={{ color: 'var(--accent)', marginBottom: '0.5rem' }}>概要</h4>
                 <div><strong>process_count:</strong> {proc.summary.process_count}</div>
                 <div><strong>high_cpu_count:</strong> {proc.summary.high_cpu_count}</div>
                 <div><strong>high_memory_count:</strong> {proc.summary.high_memory_count}</div>
@@ -433,7 +433,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
 
             {proc.summary?.top_cpu && proc.summary.top_cpu.length > 0 && (
               <div style={{ marginTop: '1rem' }}>
-                <h4 style={{ color: '#667eea', marginBottom: '0.5rem' }}>CPU上位</h4>
+                <h4 style={{ color: 'var(--accent)', marginBottom: '0.5rem' }}>CPU上位</h4>
                 {proc.summary.top_cpu.map((p, idx) => (
                   <div key={idx} className="packet-item" style={{ marginBottom: '0.5rem' }}>
                     <div><strong>{p.name || 'unknown'}</strong> (pid={p.pid})</div>
@@ -446,7 +446,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
 
             {proc.summary?.top_memory_rss && proc.summary.top_memory_rss.length > 0 && (
               <div style={{ marginTop: '1rem' }}>
-                <h4 style={{ color: '#667eea', marginBottom: '0.5rem' }}>メモリ上位</h4>
+                <h4 style={{ color: 'var(--accent)', marginBottom: '0.5rem' }}>メモリ上位</h4>
                 {proc.summary.top_memory_rss.map((p, idx) => (
                   <div key={idx} className="packet-item" style={{ marginBottom: '0.5rem' }}>
                     <div><strong>{p.name || 'unknown'}</strong> (pid={p.pid})</div>
@@ -460,7 +460,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
         )}
 
         <div style={{ marginTop: '1.25rem' }}>
-          <h4 style={{ color: '#667eea', marginBottom: '0.5rem' }}>🧩 サービス（タスクマネージャー相当）</h4>
+          <h4 style={{ color: 'var(--accent)', marginBottom: '0.5rem' }}>🧩 サービス（タスクマネージャー相当）</h4>
           <div className="packet-explanation" style={{ marginBottom: '0.75rem' }}>
             <div>💡 <strong>概要</strong></div>
             <ul style={{ margin: '0.35rem 0 0 1.2rem' }}>
@@ -534,7 +534,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
         </div>
 
         <div style={{ marginTop: '1.25rem' }}>
-          <h4 style={{ color: '#667eea', marginBottom: '0.5rem' }}>🚀 スタートアップアプリ（タスクマネージャー相当）</h4>
+          <h4 style={{ color: 'var(--accent)', marginBottom: '0.5rem' }}>🚀 スタートアップアプリ（タスクマネージャー相当）</h4>
           <div className="packet-explanation" style={{ marginBottom: '0.75rem' }}>
             <div>💡 <strong>概要</strong></div>
             <ul style={{ margin: '0.35rem 0 0 1.2rem' }}>
@@ -626,7 +626,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
         </div>
 
         <div style={{ marginTop: '1.25rem' }}>
-          <h4 style={{ color: '#667eea', marginBottom: '0.5rem' }}>🕒 アプリの履歴（簡易版）</h4>
+          <h4 style={{ color: 'var(--accent)', marginBottom: '0.5rem' }}>🕒 アプリの履歴（簡易版）</h4>
           <div className="packet-explanation" style={{ marginBottom: '0.75rem' }}>
             <div>💡 <strong>手順</strong></div>
             <ol style={{ margin: '0.35rem 0 0 1.2rem' }}>
@@ -934,7 +934,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
 
             {evt.summary && !evt.summary?.error && (
               <div>
-                <h4 style={{ color: '#667eea', marginBottom: '0.5rem' }}>概要</h4>
+                <h4 style={{ color: 'var(--accent)', marginBottom: '0.5rem' }}>概要</h4>
                 <div><strong>event_count:</strong> {evt.summary.event_count}</div>
 
                 {evt.summary.level_counts && (
@@ -986,7 +986,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
 
                   const renderTable = (title, rows) => (
                     <div style={{ marginTop: '0.75rem' }}>
-                      <h4 style={{ color: '#667eea', marginBottom: '0.25rem' }}>{title}（{rows.length}件）</h4>
+                      <h4 style={{ color: 'var(--accent)', marginBottom: '0.25rem' }}>{title}（{rows.length}件）</h4>
                       <div className="evt-muted" style={{ marginBottom: '0.5rem' }}>※ 表示は先頭50件まで</div>
 
                       {(() => {
@@ -1079,7 +1079,7 @@ function SystemMonitor({ initialTab = 'specs', showSubTabs = true, pageTitle } =
                       {warnEvents.length > 0 && renderTable('警告（具体一覧）', warnEvents)}
                       {errorEvents.length === 0 && warnEvents.length === 0 && fallback.length > 0 && (
                         <div style={{ marginTop: '0.75rem' }}>
-                          <h4 style={{ color: '#667eea', marginBottom: '0.5rem' }}>エラー/警告（サンプル）</h4>
+                          <h4 style={{ color: 'var(--accent)', marginBottom: '0.5rem' }}>エラー/警告（サンプル）</h4>
                           {fallback.map((s, idx) => (
                             <div key={idx} className="packet-item" style={{ marginBottom: '0.5rem' }}>
                               <div><strong>{s.LevelDisplayName}</strong> {s.TimeCreated}</div>

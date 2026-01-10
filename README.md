@@ -11,6 +11,8 @@ PC のネットワーク情報を確認・監視できる ローカル完結の�
 ## 目次
 
 - [📡 ネットワーク情報](#-ネットワーク情報)
+- [🖧 LAN機器一覧](#-lan機器一覧)
+- [🗺️ NMAPスキャン](#-nmapスキャン)
 - [🚀 簡単セットアップ（推奨）](#-簡単セットアップ推奨)
 - [🧪 エンドポイント確認（開発者向けテスト手順）](#-エンドポイント確認開発者向けテスト手順)
 - [🔐 ChatGPT (OpenAI) 設定](#-chatgpt-openai-設定)
@@ -40,6 +42,59 @@ PC のネットワーク情報を確認・監視できる ローカル完結の�
 - パケット数のカウント
 - エラー・ドロップ数の監視
 - 5秒ごとの自動更新
+
+## 🖧 LAN機器一覧
+
+ローカルネットワーク内の端末を「調査に使える一覧」として可視化します。
+
+- 近隣端末の発見（ARP/Neighbor など）
+- 逆引きホスト名（DNS/NetBIOS の範囲で解決）
+- MACアドレスからメーカー名推定（外部APIを利用。レート制限を考慮して制御）
+- 生存確認（Ping）と RTT（遅延）
+- 端末種別の簡易推定（例: ルータ/プリンタ/VM 等）
+- 重い処理（ポートスキャン等）は「行ごとのボタン」でオンデマンド実行
+
+NOTE:
+- メーカー名推定は外部APIのため、ネットワーク環境やAPI側の制限により空になる場合があります。
+
+## 🗺️ NMAPスキャン
+
+Nmap を使ったスキャンをGUIから実行できます。
+
+- Ping Scan（ホスト発見）
+- ポートスキャン（トップポート/指定ポート、必要に応じてサービス判定やOS推定）
+
+前提:
+- Nmap がインストール済みで、`nmap` が PATH から実行できること
+- 安全のため、プライベートIPv4（RFC1918）のみを対象にするガードレールを入れています
+
+### Windows: Nmap のインストール（例）
+
+1) インストール
+
+- winget（推奨）:
+
+```powershell
+winget install -e --id Insecure.Nmap
+```
+
+- Chocolatey:
+
+```powershell
+choco install nmap
+```
+
+- 手動:
+  - https://nmap.org/download.html から Windows インストーラを入手してインストール
+
+2) インストール確認
+
+```powershell
+nmap --version
+where.exe nmap
+```
+
+> NOTE: インストール直後に `nmap` が見つからない場合は、VS Code / ターミナルを開き直して PATH を反映してください。
 
 ## 🔍 パケットキャプチャ
 https://github.com/user-attachments/assets/df74eb44-ccfc-410d-91e1-130e8e48295d
@@ -91,6 +146,15 @@ https://github.com/user-attachments/assets/35c5ab45-1f91-4be2-ae6e-457f0645d392
 - トラブルシューティングや用語解説も対応
  - OpenAI（ChatGPT）との連携に対応。ローカルで `OPENAI_API_KEY` を設定すると ChatGPT を使った応答が有効になります（`.env` または環境変数で設定）。
  - 利用するモデルは `OPENAI_MODEL` 環境変数で切り替え可能（デフォルト: `gpt-5-mini`）。
+
+### 履歴（PostgreSQL）
+
+PostgreSQL を設定すると、相談チャットの履歴をDBに保存できます。
+
+- 会話は `conversation_id` 単位で保存
+- 画面左側の「履歴ナビ」から、会話の切り替え/再読込/クリア/新規作成が可能
+
+DBを設定していない場合でもチャットは動作しますが、履歴は保存されず一覧も空になります。
 
 ## 🚀 簡単セットアップ（推奨）
 
@@ -199,8 +263,16 @@ Invoke-RestMethod -Uri 'http://localhost:5000/api/capture/statistics' -Method Ge
 - チャットボット（テキスト問い合わせ）のテスト
 
 ```powershell
-$body = @{ question = 'ネットワークに遅延がある場合、まず何を確認すべきですか？' } | ConvertTo-Json
+$body = @{ question = 'ネットワークに遅延がある場合、まず何を確認すべきですか？'; conversation_id = 'default' } | ConvertTo-Json
 Invoke-RestMethod -Uri 'http://localhost:5000/api/chatbot' -Method Post -Body $body -ContentType 'application/json' | ConvertTo-Json -Depth 5
+```
+
+- 相談チャット履歴（DB設定がある場合）
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5000/api/chatbot/history?conversation_id=default&limit=50' -Method Get | ConvertTo-Json -Depth 6
+Invoke-RestMethod -Uri 'http://localhost:5000/api/chatbot/conversations?limit=50' -Method Get | ConvertTo-Json -Depth 6
+Invoke-RestMethod -Uri 'http://localhost:5000/api/chatbot/history?conversation_id=default' -Method Delete | ConvertTo-Json -Depth 6
 ```
 
 curl での例（Linux/macOS または Windows の curl）:
@@ -244,6 +316,7 @@ OPENAI_MODEL=gpt-5-mini
 ## 🐘 PostgreSQL（Docker）セットアップ
 
 Windowsのタスクマネージャー相当情報（プロセス一覧など）とイベントビューアの内容を自動収集し、分析結果/原データをPostgreSQLへ保存できます（psycopg）。
+また、相談チャットの履歴保存にも PostgreSQL を使用します。
 
 ### 1) PostgreSQLを起動
 
@@ -257,7 +330,7 @@ docker compose -f .\docker-compose.postgres.yml up -d
 
 ### 2) バックエンドに接続情報を設定
 
-`backend/.env` に以下を設定します（サンプル: `backend/.env.sample`）：
+`backend/.env` に以下を設定します：
 
 ```dotenv
 DATABASE_URL=postgresql://app:app@localhost:15432/app
@@ -294,6 +367,16 @@ $body = @{
 } | ConvertTo-Json
 
 Invoke-RestMethod -Uri 'http://localhost:5000/api/windows/collect' -Method Post -Body $body -ContentType 'application/json' | ConvertTo-Json -Depth 6
+```
+
+### 5) チャット履歴（API例）
+
+```powershell
+# 会話一覧
+Invoke-RestMethod -Uri 'http://localhost:5000/api/chatbot/conversations?limit=50' -Method Get | ConvertTo-Json -Depth 6
+
+# 会話履歴
+Invoke-RestMethod -Uri 'http://localhost:5000/api/chatbot/history?conversation_id=default&limit=50' -Method Get | ConvertTo-Json -Depth 6
 ```
 
 ---
@@ -531,6 +614,25 @@ npm start
 
 **解決策**: Docker Desktop を起動してから、もう一度 `docker compose -f .\docker-compose.postgres.yml up -d` を実行してください。
 
+### Nmap が見つからない / NMAPスキャンが失敗する
+
+**症状**: NMAPスキャンがエラーになり、ホストが見つからない・実行できない
+
+**原因**: Nmap が未インストール、または `nmap` が PATH に入っていない
+
+**解決策**:
+- Nmap をインストールして `nmap --version` が実行できる状態にしてください
+- インストール後はターミナル/VS Code を開き直して PATH を反映してください
+
+### チャット履歴が表示されない
+
+**原因**: PostgreSQL が起動していない、または `DATABASE_URL` 未設定
+
+**解決策**:
+- Docker Desktop を起動し、`docker compose -f .\docker-compose.postgres.yml up -d` を実行
+- `backend/.env` に `DATABASE_URL=postgresql://app:app@localhost:15432/app` を設定
+- `http://localhost:5000/api/db/health` が `ok: true` になることを確認
+
 ### ポートがすでに使用されている
 
 **原因**: 5000番ポートまたは3000番ポートが使用中
@@ -688,3 +790,7 @@ AIcheckNetwork/
 └── README.md             # このファイル
 ```
 
+
+
+
+cd "c:\Users\toush\Desktop\works\hayashi_work\program\PoC_Python2PostgreSQL_2"; powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1

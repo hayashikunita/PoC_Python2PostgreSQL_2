@@ -23,6 +23,12 @@ from pathlib import Path
 import windows_collect
 import db
 import system_specs
+import registry_collect
+import diagnostics
+import network_connections
+import lan_discovery
+import snmp_discovery
+import nmap_scan
 
 # 明示的に backend フォルダの .env を読み込む
 env_path = Path(__file__).resolve().parent / '.env'
@@ -553,6 +559,159 @@ async def network_stats():
     return get_network_stats()
 
 
+@app.get("/api/network/lan-devices")
+async def lan_devices(
+    sweep: bool = Query(False),
+    max_hosts: int = Query(256, ge=16, le=4096),
+    timeout_ms: int = Query(250, ge=100, le=2000),
+    max_concurrency: int = Query(64, ge=1, le=256),
+    resolve_names: bool = Query(False, description="逆引きでホスト名解決（遅い場合あり）"),
+    resolve_timeout_ms: int = Query(800, ge=100, le=5000),
+    resolve_max_concurrency: int = Query(32, ge=1, le=128),
+    resolve_max_entries: int = Query(256, ge=1, le=2048),
+    resolve_vendors: bool = Query(False, description="MACベンダー推定（外部APIを利用）"),
+    vendor_timeout_ms: int = Query(1200, ge=200, le=5000),
+    vendor_max_concurrency: int = Query(2, ge=1, le=64),
+    vendor_max_entries: int = Query(256, ge=1, le=2048),
+    ping_check: bool = Query(False, description="各IPへPingして到達性/RRTを推定（時間がかかる場合あり）"),
+    ping_timeout_ms: int = Query(600, ge=50, le=5000),
+    ping_max_concurrency: int = Query(64, ge=1, le=256),
+    ping_max_entries: int = Query(256, ge=1, le=4096),
+):
+    """LAN内の近隣機器（IP/MAC）を best-effort で返す。
+
+    注意: ARP/Neighbor テーブル由来のため、全機器の網羅は保証できません。
+    """
+    try:
+        return await run_in_threadpool(
+            lan_discovery.collect_lan_devices,
+            sweep=sweep,
+            max_hosts=max_hosts,
+            timeout_ms=timeout_ms,
+            max_concurrency=max_concurrency,
+            resolve_names=resolve_names,
+            resolve_timeout_ms=resolve_timeout_ms,
+            resolve_max_concurrency=resolve_max_concurrency,
+            resolve_max_entries=resolve_max_entries,
+            resolve_vendors=resolve_vendors,
+            vendor_timeout_ms=vendor_timeout_ms,
+            vendor_max_concurrency=vendor_max_concurrency,
+            vendor_max_entries=vendor_max_entries,
+            ping_check=ping_check,
+            ping_timeout_ms=ping_timeout_ms,
+            ping_max_concurrency=ping_max_concurrency,
+            ping_max_entries=ping_max_entries,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/network/lan-devices/snmp")
+async def lan_devices_snmp(
+    host: str = Query(..., description="SNMP対象（ルータ/スイッチのIP）"),
+    community: str = Query(..., description="SNMP community (v2c)"),
+    port: int = Query(161, ge=1, le=65535),
+    timeout_s: float = Query(2.0, ge=0.5, le=10.0),
+    retries: int = Query(1, ge=0, le=5),
+):
+    """SNMPでルータ/スイッチのARPテーブル（IP-MIB）を取得して返す。"""
+    try:
+        return await run_in_threadpool(
+            snmp_discovery.fetch_arp_table,
+            host=host,
+            community=community,
+            port=port,
+            timeout_s=timeout_s,
+            retries=retries,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/network/lan-devices/nmap")
+async def lan_devices_nmap(
+    cidr: str = Query(..., description="スキャン対象CIDR（例: 192.168.1.0/24）"),
+    arp: bool = Query(True, description="同一LAN向けARP discovery (-PR)"),
+    no_dns: bool = Query(True, description="名前解決を無効化 (-n)"),
+    max_hosts: int = Query(4096, ge=16, le=65535),
+    timeout_s: float = Query(120.0, ge=5.0, le=600.0),
+):
+    """nmap を使ってLAN内の生存ホストをスキャンして返す。"""
+    try:
+        return await run_in_threadpool(
+            nmap_scan.nmap_ping_scan,
+            cidr=cidr,
+            arp=arp,
+            no_dns=no_dns,
+            max_hosts=max_hosts,
+            timeout_s=timeout_s,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/network/nmap/ports")
+async def nmap_ports(
+    target: str = Query(..., description="スキャン対象IP（private IPv4のみ）"),
+    ports: str | None = Query(None, description="例: 22,80,443 / 1-1024"),
+    top_ports: int | None = Query(None, ge=1, le=1000, description="--top-ports N（1..1000）"),
+    service_version: bool = Query(True, description="サービス判定 (-sV)"),
+    os_detect: bool = Query(False, description="OS推定 (-O) ※環境/権限により失敗あり"),
+    traceroute: bool = Query(False, description="traceroute（--traceroute）"),
+    no_dns: bool = Query(True, description="名前解決を無効化 (-n)"),
+    timeout_s: float = Query(180.0, ge=5.0, le=1800.0),
+):
+    try:
+        return await run_in_threadpool(
+            nmap_scan.nmap_port_scan,
+            target=target,
+            ports=ports,
+            top_ports=top_ports,
+            service_version=service_version,
+            os_detect=os_detect,
+            traceroute=traceroute,
+            no_dns=no_dns,
+            timeout_s=timeout_s,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/network/nmap/network-ports")
+async def nmap_network_ports(
+    cidr: str = Query(..., description="スキャン対象CIDR（private IPv4のみ）"),
+    ports: str | None = Query(None, description="例: 22,80,443 / 1-1024"),
+    top_ports: int | None = Query(50, ge=1, le=200, description="--top-ports N（CIDRは1..200推奨）"),
+    service_version: bool = Query(False, description="サービス判定 (-sV) ※時間がかかる場合あり"),
+    os_detect: bool = Query(False, description="OS推定 (-O) ※環境/権限により失敗あり"),
+    traceroute: bool = Query(False, description="traceroute（--traceroute）"),
+    no_dns: bool = Query(True, description="名前解決を無効化 (-n)"),
+    max_hosts: int = Query(1024, ge=16, le=65535, description="CIDRの最大ホスト数上限"),
+    timeout_s: float = Query(600.0, ge=10.0, le=3600.0),
+):
+    try:
+        return await run_in_threadpool(
+            nmap_scan.nmap_network_port_scan,
+            cidr=cidr,
+            ports=ports,
+            top_ports=top_ports,
+            service_version=service_version,
+            os_detect=os_detect,
+            traceroute=traceroute,
+            no_dns=no_dns,
+            max_hosts=max_hosts,
+            timeout_s=timeout_s,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/db/health")
 async def database_health():
     """PostgreSQL 接続ヘルスチェック（DATABASE_URL が必要）"""
@@ -641,7 +800,212 @@ async def windows_startup_apps(
     except asyncio.TimeoutError:
         raise HTTPException(status_code=504, detail="startup apps timed out")
 
+
+@app.get("/api/windows/registry/report")
+async def windows_registry_report():
+    """Windowsレジストリの設定値を取得し、簡易判定したレポートを返す。"""
+
+    try:
+        return registry_collect.collect_registry_report()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
     return payload
+
+
+class ConnectivityRequest(BaseModel):
+    ping_targets: List[str] = ["8.8.8.8"]
+    dns_targets: List[str] = ["www.google.com"]
+    http_targets: List[str] = ["https://www.google.com/generate_204"]
+    ping_timeout_ms: int = 1000
+    http_timeout_s: float = 4.0
+    use_proxy: bool = True
+    deep_checks: bool = False
+    trace_targets: List[str] = []
+    tls_targets: List[str] = []
+
+
+@app.post("/api/diagnostics/connectivity")
+async def diagnostics_connectivity(req: ConnectivityRequest):
+    """Ping/DNS/HTTPの疎通チェックをまとめて実行する。"""
+    try:
+        payload = await run_in_threadpool(
+            diagnostics.run_connectivity_suite,
+            ping_targets=req.ping_targets,
+            dns_targets=req.dns_targets,
+            http_targets=req.http_targets,
+            ping_timeout_ms=req.ping_timeout_ms,
+            http_timeout_s=req.http_timeout_s,
+            use_proxy=req.use_proxy,
+            deep_checks=req.deep_checks,
+            trace_targets=req.trace_targets,
+            tls_targets=req.tls_targets,
+        )
+        return {
+            "collected_at": datetime.utcnow().isoformat() + "Z",
+            "hostname": socket.gethostname(),
+            "request": req.model_dump(),
+            "results": payload,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/network/connections")
+async def network_connections_endpoint(
+    limit: int = Query(500, ge=50, le=5000),
+    include_listen: bool = Query(True),
+    include_flags: bool = Query(True),
+    include_signature: bool = Query(False),
+):
+    """現在のTCP/UDP接続（簡易版）を返す。"""
+    try:
+        return await run_in_threadpool(
+            network_connections.list_connections,
+            limit=limit,
+            include_listen=include_listen,
+            include_flags=include_flags,
+            include_signature=include_signature,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/windows/registry/summary")
+async def windows_registry_summary():
+    """レジストリ判定結果をOK/注意/NGで要約して返す。"""
+    try:
+        report = registry_collect.collect_registry_report()
+        checks = report.get("checks") if isinstance(report, dict) else None
+        if not isinstance(checks, list):
+            return {"ok": False, "error": "invalid report"}
+
+        counts = {"ok": 0, "warn": 0, "error": 0}
+        non_ok: List[Dict[str, Any]] = []
+        for c in checks:
+            if not isinstance(c, dict):
+                continue
+            level = str(c.get("level") or "warn")
+            if level not in counts:
+                level = "warn"
+            counts[level] += 1
+            if level != "ok":
+                non_ok.append(
+                    {
+                        "id": c.get("id"),
+                        "title": c.get("title"),
+                        "level": level,
+                        "message": c.get("message"),
+                        "actual": c.get("actual"),
+                        "expected": c.get("expected"),
+                        "hive": c.get("hive"),
+                        "key_path": c.get("key_path"),
+                        "value_name": c.get("value_name"),
+                    }
+                )
+
+        # error -> warn の順で上に
+        def _rank(lv: str) -> int:
+            return 0 if lv == "error" else 1
+
+        non_ok.sort(key=lambda x: (_rank(str(x.get("level") or "")), str(x.get("title") or "")))
+
+        return {
+            "collected_at": report.get("collected_at"),
+            "hostname": report.get("hostname"),
+            "is_windows": report.get("is_windows"),
+            "counts": counts,
+            "non_ok": non_ok,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/report/all")
+async def report_all(
+    include_packets: bool = Query(False),
+    packets_limit: int = Query(500, ge=0, le=5000),
+    max_events: int = Query(200, ge=0, le=1000),
+):
+    """主要タブの情報をまとめたレポートJSONを返す（重い項目は控えめ）。"""
+    out: Dict[str, Any] = {
+        "collected_at": datetime.utcnow().isoformat() + "Z",
+        "hostname": socket.gethostname(),
+        "network_info": get_network_info(),
+        "wifi_info": get_wifi_info(),
+        "network_stats": get_network_stats(),
+    }
+
+    # system specs
+    try:
+        out["system_specs"] = await run_in_threadpool(system_specs.collect_system_specs)
+    except Exception as e:
+        out["system_specs_error"] = str(e)
+
+    # task manager-ish snapshots
+    try:
+        out["process_snapshot"] = await run_in_threadpool(
+            windows_collect.collect_process_snapshot, sample_ms=200, limit=250, timeout_s=10
+        )
+    except Exception as e:
+        out["process_snapshot_error"] = str(e)
+
+    try:
+        out["windows_services"] = await run_in_threadpool(windows_collect.collect_windows_services, limit=300, timeout_s=10)
+    except Exception as e:
+        out["windows_services_error"] = str(e)
+
+    try:
+        out["startup_apps"] = await run_in_threadpool(windows_collect.collect_startup_apps, limit=200, timeout_s=15)
+    except Exception as e:
+        out["startup_apps_error"] = str(e)
+
+    # registry
+    try:
+        out["registry_report"] = registry_collect.collect_registry_report()
+    except Exception as e:
+        out["registry_report_error"] = str(e)
+
+    # connections
+    try:
+        out["connections"] = await run_in_threadpool(
+            network_connections.list_connections,
+            limit=500,
+            include_listen=True,
+            include_flags=True,
+            include_signature=False,
+        )
+    except Exception as e:
+        out["connections_error"] = str(e)
+
+    # capture status/statistics (and optionally packets)
+    try:
+        out["capture_status"] = await capture_status()
+    except Exception as e:
+        out["capture_status_error"] = str(e)
+
+    try:
+        out["capture_statistics"] = await get_capture_statistics()
+    except Exception as e:
+        out["capture_statistics_error"] = str(e)
+
+    if include_packets:
+        try:
+            p = await get_packets()
+            if isinstance(p, dict) and isinstance(p.get("packets"), list) and packets_limit > 0:
+                p = {**p, "packets": p["packets"][-packets_limit:]}
+            out["capture_packets"] = p
+        except Exception as e:
+            out["capture_packets_error"] = str(e)
+
+    # eventlog (summary only; respect max_events)
+    try:
+        if max_events > 0:
+            out["eventlog"] = await windows_eventlog(log_name="System", since_hours=24, max_events=max_events, save=False)
+    except Exception as e:
+        out["eventlog_error"] = str(e)
+
+    return out
 
 
 @app.post("/api/system/app-history/sample")
@@ -1662,6 +2026,7 @@ async def chatbot(request: Request):
     """相談チャットボットAPI: 質問を受けて回答を返す"""
     data = await request.json()
     question_raw = data.get('question', '')
+    conversation_id = (data.get('conversation_id') or 'default').strip() or 'default'
     question = question_raw.lower()
     print(f"[chatbot] Received question: {question_raw}")
 
@@ -1687,31 +2052,137 @@ async def chatbot(request: Request):
         answer, err = await call_openai_chat(messages)
         if answer:
             print('[chatbot] Responding with OpenAI answer')
+            try:
+                db.insert_chat_message(conversation_id=conversation_id, role='user', content=question_raw, source='client')
+                db.insert_chat_message(conversation_id=conversation_id, role='assistant', content=answer, source='openai')
+            except Exception as e:
+                print(f"[chatbot] DB save skipped: {e}")
             return {"answer": answer, "source": "openai"}
         else:
             print(f"[chatbot] OpenAI request failed: {err}")
 
     # OpenAIが使えない/失敗した場合はルールベース応答を返す
     if 'パケットキャプチャ' in question and ('とは' in question or '何' in question):
-        return {"answer": "パケットキャプチャはネットワーク上のデータパケットを記録・解析する技術です。\n\nこのアプリでは「パケットキャプチャ」タブで簡単にキャプチャできます。", "source": "rule"}
+        answer = "パケットキャプチャはネットワーク上のデータパケットを記録・解析する技術です。\n\nこのアプリでは「パケットキャプチャ」タブで簡単にキャプチャできます。"
+        try:
+            db.insert_chat_message(conversation_id=conversation_id, role='user', content=question_raw, source='client')
+            db.insert_chat_message(conversation_id=conversation_id, role='assistant', content=answer, source='rule')
+        except Exception as e:
+            print(f"[chatbot] DB save skipped: {e}")
+        return {"answer": answer, "source": "rule"}
     if '統計' in question or '分析' in question:
         if stats and stats.get('total_packets', 0) > 0:
-            return {"answer": f"現在のキャプチャ統計:\nパケット数: {stats['total_packets']}\nプロトコル分布: {stats['protocol_distribution']}\n異常検知: {len(stats.get('anomaly_detection', {}).get('warnings', []))}件の警告があります。", "source": "rule"}
+            answer = f"現在のキャプチャ統計:\nパケット数: {stats['total_packets']}\nプロトコル分布: {stats['protocol_distribution']}\n異常検知: {len(stats.get('anomaly_detection', {}).get('warnings', []))}件の警告があります。"
+            try:
+                db.insert_chat_message(conversation_id=conversation_id, role='user', content=question_raw, source='client')
+                db.insert_chat_message(conversation_id=conversation_id, role='assistant', content=answer, source='rule')
+            except Exception as e:
+                print(f"[chatbot] DB save skipped: {e}")
+            return {"answer": answer, "source": "rule"}
         else:
-            return {"answer": "まだパケットキャプチャが実行されていません。まずキャプチャを開始してください。", "source": "rule"}
+            answer = "まだパケットキャプチャが実行されていません。まずキャプチャを開始してください。"
+            try:
+                db.insert_chat_message(conversation_id=conversation_id, role='user', content=question_raw, source='client')
+                db.insert_chat_message(conversation_id=conversation_id, role='assistant', content=answer, source='rule')
+            except Exception as e:
+                print(f"[chatbot] DB save skipped: {e}")
+            return {"answer": answer, "source": "rule"}
     if 'tcp' in question and 'udp' in question:
-        return {"answer": "TCPは信頼性重視、UDPは速度重視の通信方式です。用途に応じて使い分けます。", "source": "rule"}
+        answer = "TCPは信頼性重視、UDPは速度重視の通信方式です。用途に応じて使い分けます。"
+        try:
+            db.insert_chat_message(conversation_id=conversation_id, role='user', content=question_raw, source='client')
+            db.insert_chat_message(conversation_id=conversation_id, role='assistant', content=answer, source='rule')
+        except Exception as e:
+            print(f"[chatbot] DB save skipped: {e}")
+        return {"answer": answer, "source": "rule"}
     if 'https' in question or 'ssl' in question or 'tls' in question:
-        return {"answer": "HTTPSはSSL/TLSによる暗号化通信です。安全ですが、証明書の有効性も確認しましょう。", "source": "rule"}
+        answer = "HTTPSはSSL/TLSによる暗号化通信です。安全ですが、証明書の有効性も確認しましょう。"
+        try:
+            db.insert_chat_message(conversation_id=conversation_id, role='user', content=question_raw, source='client')
+            db.insert_chat_message(conversation_id=conversation_id, role='assistant', content=answer, source='rule')
+        except Exception as e:
+            print(f"[chatbot] DB save skipped: {e}")
+        return {"answer": answer, "source": "rule"}
     if 'ポート' in question and ('何' in question or 'とは' in question):
-        return {"answer": "ポート番号はPC内のサービスを識別する番号です。\n例: 80=HTTP, 443=HTTPS, 22=SSH", "source": "rule"}
+        answer = "ポート番号はPC内のサービスを識別する番号です。\n例: 80=HTTP, 443=HTTPS, 22=SSH"
+        try:
+            db.insert_chat_message(conversation_id=conversation_id, role='user', content=question_raw, source='client')
+            db.insert_chat_message(conversation_id=conversation_id, role='assistant', content=answer, source='rule')
+        except Exception as e:
+            print(f"[chatbot] DB save skipped: {e}")
+        return {"answer": answer, "source": "rule"}
     if '不審' in question and 'ポート' in question:
-        return {"answer": "不審なポート番号（例: 1337, 4444, 6667など）が検出された場合は注意が必要です。\n統計解析タブで自動検出できます。", "source": "rule"}
+        answer = "不審なポート番号（例: 1337, 4444, 6667など）が検出された場合は注意が必要です。\n統計解析タブで自動検出できます。"
+        try:
+            db.insert_chat_message(conversation_id=conversation_id, role='user', content=question_raw, source='client')
+            db.insert_chat_message(conversation_id=conversation_id, role='assistant', content=answer, source='rule')
+        except Exception as e:
+            print(f"[chatbot] DB save skipped: {e}")
+        return {"answer": answer, "source": "rule"}
     if 'エラー' in question or 'できない' in question or '失敗' in question or '問題' in question:
-        return {"answer": "管理者権限で実行していますか？\nバックエンド・フロントエンドが両方起動しているか確認してください。", "source": "rule"}
+        answer = "管理者権限で実行していますか？\nバックエンド・フロントエンドが両方起動しているか確認してください。"
+        try:
+            db.insert_chat_message(conversation_id=conversation_id, role='user', content=question_raw, source='client')
+            db.insert_chat_message(conversation_id=conversation_id, role='assistant', content=answer, source='rule')
+        except Exception as e:
+            print(f"[chatbot] DB save skipped: {e}")
+        return {"answer": answer, "source": "rule"}
 
     # デフォルト応答（より案内的にする）
-    return {"answer": "ご質問ありがとうございます。もう少し具体的に教えてください（例: 'パケットキャプチャの始め方'、'特定のIPの通信を調べたい' など）。もしくは右上のよくある質問ボタンを使ってみてください。", "source": "default"}
+    answer = "ご質問ありがとうございます。もう少し具体的に教えてください（例: 'パケットキャプチャの始め方'、'特定のIPの通信を調べたい' など）。もしくは右上のよくある質問ボタンを使ってみてください。"
+    try:
+        db.insert_chat_message(conversation_id=conversation_id, role='user', content=question_raw, source='client')
+        db.insert_chat_message(conversation_id=conversation_id, role='assistant', content=answer, source='default')
+    except Exception as e:
+        print(f"[chatbot] DB save skipped: {e}")
+    return {"answer": answer, "source": "default"}
+
+
+@app.get("/api/chatbot/history")
+async def chatbot_history(
+    conversation_id: str = Query('default', description='会話ID'),
+    limit: int = Query(200, ge=1, le=1000),
+):
+    """相談チャット履歴を取得（DB設定が必要）。"""
+    try:
+        rows = db.fetch_chat_messages(conversation_id=conversation_id, limit=limit)
+        messages = [{"role": r.get("role"), "content": r.get("content"), "created_at": r.get("created_at"), "source": r.get("source")} for r in rows]
+        return {"ok": True, "configured": True, "conversation_id": (conversation_id or 'default'), "messages": messages}
+    except Exception as e:
+        # DB未設定/接続失敗でもフロントは動けるようにする
+        return {"ok": False, "configured": False, "error": str(e), "conversation_id": (conversation_id or 'default'), "messages": []}
+
+
+@app.delete("/api/chatbot/history")
+async def chatbot_history_clear(
+    conversation_id: str = Query('default', description='会話ID'),
+):
+    """相談チャット履歴を削除（DB設定が必要）。"""
+    try:
+        deleted = db.clear_chat_messages(conversation_id=conversation_id)
+        return {"ok": True, "configured": True, "conversation_id": (conversation_id or 'default'), "deleted": deleted}
+    except Exception as e:
+        return {"ok": False, "configured": False, "error": str(e), "conversation_id": (conversation_id or 'default'), "deleted": 0}
+
+
+@app.get("/api/chatbot/conversations")
+async def chatbot_conversations(
+    limit: int = Query(100, ge=1, le=500),
+):
+    """保存済み会話一覧（DB設定が必要）。"""
+    try:
+        rows = db.list_chat_conversations(limit=limit)
+        conversations = [
+            {
+                "conversation_id": r.get("conversation_id"),
+                "last_message_at": r.get("last_message_at"),
+                "message_count": r.get("message_count"),
+            }
+            for r in rows
+        ]
+        return {"ok": True, "configured": True, "conversations": conversations}
+    except Exception as e:
+        return {"ok": False, "configured": False, "error": str(e), "conversations": []}
 
 @app.get("/api/chatbot")
 async def chatbot_test():

@@ -71,25 +71,25 @@ function NetworkStats() {
           <div className="unit">個</div>
         </div>
 
-        <div className="stat-box" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+        <div className="stat-box">
           <h4>⚠️ 送信エラー</h4>
           <div className="value">{stats.errout.toLocaleString()}</div>
           <div className="unit">回</div>
         </div>
 
-        <div className="stat-box" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+        <div className="stat-box">
           <h4>⚠️ 受信エラー</h4>
           <div className="value">{stats.errin.toLocaleString()}</div>
           <div className="unit">回</div>
         </div>
 
-        <div className="stat-box" style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>
+        <div className="stat-box">
           <h4>📉 送信ドロップ</h4>
           <div className="value">{stats.dropout.toLocaleString()}</div>
           <div className="unit">個</div>
         </div>
 
-        <div className="stat-box" style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>
+        <div className="stat-box">
           <h4>📉 受信ドロップ</h4>
           <div className="value">{stats.dropin.toLocaleString()}</div>
           <div className="unit">個</div>
@@ -97,7 +97,7 @@ function NetworkStats() {
       </div>
 
       <div className="info-item" style={{ marginTop: '2rem' }}>
-        <h4 style={{ color: '#667eea', marginBottom: '1rem' }}>📚 用語解説</h4>
+        <h4 style={{ color: 'var(--accent)', marginBottom: '1rem' }}>📚 用語解説</h4>
         <div style={{ lineHeight: '1.8' }}>
           <p><strong>送信/受信データ:</strong> PCがネットワークを通じて送受信したデータの総量です。</p>
           <p><strong>パケット:</strong> ネットワークで転送されるデータの単位。データは小さなパケットに分割されて送信されます。</p>
